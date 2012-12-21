@@ -1,0 +1,9 @@
+[Desktop Entry]
+Exec=/usr/bin/filerock
+Name=FileRock
+StartupNotify=true
+Terminal=false
+Type=Application
+Categories=Network;
+Icon=filerock-client.png
+Comment=FileRock client
