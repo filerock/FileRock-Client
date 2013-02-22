@@ -43,9 +43,13 @@ FileRock Client is licensed under GPLv3 License.
 import logging
 import threading
 import Queue
+import os
 
+from filerockclient.config import USER_DEFINED_OPTIONS
 from filerockclient.workers.worker import Worker
-
+from filerockclient.workers.worker_child import DOWNLOAD_DIR
+from filerockclient.workers.bandwidth import Bandwidth
+from filerockclient.workers.bandwidth import CHUNK_SIZE
 
 class MyPriorityQueue(Queue.PriorityQueue):
 
@@ -75,25 +79,34 @@ class WorkerPool(object):
     and the counting is done by a semaphore
     """
 
-    def __init__(self, warebox, server_session, cfg):
+    def __init__(self, warebox, server_session, cfg, cryptoAdapter):
         """
         @param warebox:
                     Instance of filerockclient.warebox.Warebox.
         @param cfg:
                     Instance of filerockclient.config.ConfigManager.
         @param server_session:
-                    Instance of filerockclient.serversession.server_session.ServerSession
+                    Instance of filerockclient.serversession.server_session.
+                    ServerSession.
         """
 
         self.started = False
         self._server_session = server_session
         self.logger = logging.getLogger("FR.%s" % self.__class__.__name__)
         how_many_workers = 4
+        
+        self.up_bandwidth = Bandwidth(cfg.getint(USER_DEFINED_OPTIONS,
+                                                 u'bandwidth_limit_upload'))
+        self.down_bandwidth = Bandwidth(cfg.getint(USER_DEFINED_OPTIONS,
+                                                   u'bandwidth_limit_download'),
+                                        max_chunk_size=CHUNK_SIZE*10)
+        self.cfg = cfg
         self.worker_operation_queue = MyPriorityQueue()
         self.workers = []
         self.free_worker = threading.Semaphore(how_many_workers)
         for _ in range(how_many_workers):
-            worker = Worker(warebox, self.worker_operation_queue, cfg, self)
+            worker = Worker(warebox, self.worker_operation_queue,
+                            server_session, cfg, cryptoAdapter, self)
             self.workers.append(worker)
 
     def start_workers(self):
@@ -179,7 +192,22 @@ class WorkerPool(object):
                 w.join() if w is not threading.current_thread() else None
             self.logger.debug(u"Workers terminated.")
         self.logger.debug(u"WorkerPool terminated.")
-
-
+        
+    def clean_download_dir(self):
+        """
+        Deletes all the files in the encryption dir
+        """
+        folder = os.path.join(self.cfg.get('Application Paths','temp_dir'), DOWNLOAD_DIR)
+        self.logger.debug('Cleaning encryption dir %s' % folder)
+        if os.path.exists(folder):
+            for the_file in os.listdir(folder):
+                file_path = os.path.join(folder, the_file)
+                try:
+                    if os.path.isfile(file_path):
+                        self.logger.debug('Unlinking file %s' % file_path)
+                        os.unlink(file_path)
+                except Exception:
+                    self.logger.exception('Error cleaning temp encryption dir')
+                    
 if __name__ == '__main__':
     pass

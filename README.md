@@ -59,6 +59,7 @@ In order to run FileRock client from the source code, follow these instructions:
 
 Packaged version of FileRock Client are availble [here](https://www.filerock.com/download).
 
+We will do our best to keep the code in this repository and the packaged versions synchronized.
 
 --
 
@@ -73,9 +74,12 @@ If you don't have pip yet, installation instructions are available [here](http:/
 + pycrypto 2.5 - Can be ckecked out [from git](https://github.com/dlitz/pycrypto) or from the [tarball](http://ftp.dlitz.net/pub/dlitz/crypto/pycrypto/pycrypto-2.6.tar.gz)
 + wxPython 2.8.12.1 - Can be downloaded from [wxpython.org](http://wxpython.org/download.php). Binaries for MS Windows are available [here](http://downloads.sourceforge.net/wxpython/wxPython2.8-win32-uni
 code-2.8.12.1-py27.exe) and for Mac Os X [here](http://downloads.sourceforge.net/project/wxpython/wxPython/2.8.12.1/wxPython2.8-osx-unicode-2.8.12.1-universal-py2.7.dmg)
-+ PIL (Python Image Library) - Can be installed through pip. Binaries for MS Windows are available [here](http://www.pythonware.com/products/pil/)
-+ apscheduler 2.0.3 - Can be installed through pip
-+ PySocks 1.04 - Can be ckecked out [from git](https://github.com/Anorov/PySocks)
++ PIL (Python Image Library) - Can be installed through pip.
+    + Installation through pip requires a C compiler
+    + Binaries for MS Windows are available [here](http://www.pythonware.com/products/pil/)
++ apscheduler 2.0.3 - Can be installed through pip.
++ PySocks 1.04 - Can be ckecked out [from git](https://github.com/Anorov/PySocks).
++ portalocker 0.3 - Can be installed through pip.
 
 The following are required only on Linux and Mac OS X:
 
@@ -88,15 +92,20 @@ The following are required only on Mac OS X:
 The following are required only on MS Windows:
 
 + pywin32 217 - Can be checked out [from sourceforge project page](http://sourceforge.net/projects/pywin32/files/pywin32/Build%20217/)
++ protobuf 2.4.1 - Can be installed through pip.
+
+The following are optional dependencies, needed only for the `i18n` support (that is, translation to languages different from English).
+
++ distutils-extra 2.37 - Can be checked out [from Launchpad](https://launchpad.net/python-distutils-extra).
++ intltool 0.50.2 - Can be checked out [from Launchpad](https://launchpad.net/intltool).
+    + Requires to install a [perl](http://www.perl.org/) interpreter as a dependency.
+
 
 The following are required only for developers, in order to run the automated tests:
 
-+ nose 1.1.2
-+ protobuf 2.4.1
-+ mock 1.0.1
++ nose 1.1.2 - Can be installed through pip.
++ mock 1.0.1 - Can be installed through pip.
 
-
---
 
 
 

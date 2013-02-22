@@ -27,9 +27,6 @@
 """
 This is the transaction_cache module.
 
-
-
-
 ----
 
 This module is part of the FileRock Client.
@@ -40,64 +37,46 @@ FileRock Client is licensed under GPLv3 License.
 
 """
 
-import logging, os, pickle
-from filerockclient.databases.sqlite import SQLiteDB
+import logging
+import pickle
 from datetime import datetime
-from filerockclient.exceptions import CachePersistenceException
 
-class TransactionCache(object):
+from filerockclient.databases.abstract_cache import AbstractCache
+
+
+TABLE_NAME = "transaction_cache"
+
+SCHEMA = ["id int",
+          "file_operation blob",
+          "transaction_timestamp text"]
+
+KEY = "id"
+
+
+class TransactionCache(AbstractCache):
 
     def __init__(self, database_file):
-        self.logger = logging.getLogger("FR."+self.__class__.__name__)
-        self.db = SQLiteDB(database_file)
-        self.filename = database_file
-        self._recreate_db_if_not_exists()
+        logger = logging.getLogger("FR.%s" % self.__class__.__name__)
+        AbstractCache.__init__(
+                self, database_file, TABLE_NAME, SCHEMA, KEY, logger)
 
-    def _recreate_db_if_not_exists(self):
-        if not os.path.exists(self.filename) or not self._check_database_file():
-            self._initialize()
-
-    def _query(self, statement, qargs):
-        self._recreate_db_if_not_exists()
-        return self.db.query(statement, qargs)
-
-    def insert(self, op_id, file_operation, transaction_timestamp):
-        # Pickled data is stored as binary data into a BLOB field
-        operation_str = buffer(pickle.dumps(file_operation))
+    def update_record(self, op_id, operation, transaction_timestamp):
+        # Pickled data are stored as binary data into a BLOB field
+        operation_str = buffer(pickle.dumps(operation))
         timestamp_str = transaction_timestamp.strftime('%Y-%m-%d %H:%M:%S')
-        success = self.db.execute('INSERT INTO transaction_cache values (?,?,?)', (op_id, operation_str, timestamp_str))
-        # TODO: let SQLite raise its own exceptions and wrap them instead of using booleans!
-        if not success:
-            raise CachePersistenceException('transaction_cache insert')
+        AbstractCache.update_record(self, op_id, operation_str, timestamp_str)
 
-    def get_all(self):
-        records = self._query('SELECT * FROM transaction_cache', ())
+    def get_all_records(self):
+        records = AbstractCache.get_all_records(self)
         result = []
         for record in records:
             op_id, operation_str, timestamp_str = record
-            # Pickled data is stored as binary data into a BLOB field
-            file_operation = pickle.loads(str(operation_str))
-            transaction_timestamp = datetime.strptime(timestamp_str, '%Y-%m-%d %H:%M:%S')
-            result.append((op_id, file_operation, transaction_timestamp))
+            # Pickled data are stored as binary data into a BLOB field
+            operation = pickle.loads(str(operation_str))
+            timestamp = datetime.strptime(timestamp_str, '%Y-%m-%d %H:%M:%S')
+            result.append((op_id, operation, timestamp))
         return result
 
-    def clear(self):
-        success = self.db.execute("DELETE FROM transaction_cache", [])
-        # TODO: let SQLite raise its own exceptions and wrap them instead of using booleans!
-        if not success:
-            raise CachePersistenceException('transaction_cache delete')
-
-    def _check_database_file(self):
-        try:
-            result = self.db.check_database_file("SELECT * from transaction_cache")
-        except:
-            # TODO: create backup
-#            self.logger.warning(u"Corrupted %s database file. Backupped as %s" % (self.filename, backup_name))
-            result = False
-        return result
-
-    def _initialize(self):
-        self.db.execute('CREATE TABLE transaction_cache (id int, file_operation blob, transaction_timestamp text)')
 
 if __name__ == '__main__':
-    print "\n This file does nothing on its own, it's just the %s module. \n" % __file__
+    pass

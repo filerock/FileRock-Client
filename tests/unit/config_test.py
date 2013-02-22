@@ -42,6 +42,8 @@ FileRock Client is licensed under GPLv3 License.
 
 import os
 from nose.tools import *
+from ConfigParser import SafeConfigParser
+import codecs
 
 import filerockclient.config
 from filerockclient.config import ConfigManager
@@ -60,7 +62,7 @@ SIMPLE_CONFIG_FILE = {
         'temp_dir': 'temp',
         'field': 'value'
     },
-    'Client': {
+    'Application Paths': {
         'caches_dir': 'caches'
     }
 }
@@ -79,8 +81,11 @@ COMPLEX_CONFIG_FILE = {
         'field2': 'new_f2'
     },
     'Client': {
-        'caches_dir': 'caches',
         'commit_threshold_seconds': '15'
+    },
+    'Application Paths': {
+        'caches_dir': 'caches',
+        'to_auto_discover': '<AUTO-DISCOVERY>'
     }
 }
 
@@ -98,8 +103,10 @@ OBSOLETE_CONFIG_FILE = {
         'field2': 'f2'
     },
     'Client': {
-        'caches_dir': 'caches',
         'field3': 'f3'
+    },
+    'Application Paths': {
+        'caches_dir': 'caches'
     }
 }
 
@@ -147,39 +154,11 @@ def test_simple_config_file_is_read_correctly():
         cfg = ConfigManager(test_cfg_dir)
         cfg.load()
         assert_equal(cfg.getint('System', 'config_version'), 1)
-        assert_equal(cfg.get('Client', 'caches_dir'), u'caches')
+        assert_equal(cfg.get('Application Paths', 'caches_dir'), u'caches')
         assert_equal(cfg.get('User', 'temp_dir'), u'temp')
         assert_equal(cfg.get('User', 'field'), u'value')
     finally:
         cleanup_configuration(test_cfg_dir)
-
-
-# We have changed our mind, custom configuration dir/files don't get
-# created automatically anymore.
-
-# def test_missing_config_file_is_created():
-#     test_cfg_dir = get_current_dir()
-#     try:
-#         cfg = ConfigManager(test_cfg_dir)
-#         cfg.load()
-#         assert_true(exists_config_file(test_cfg_dir))
-#         server_port = cfg.getint('System', 'server_port')
-#         assert_equal(server_port, int(DEFAULT_CONFIG['System']['server_port']))
-#     finally:
-#         cleanup_configuration(test_cfg_dir)
-
-
-# def test_missing_config_directory_is_created():
-#     test_cfg_dir = os.path.join(get_current_dir(), 'ghost_config')
-#     try:
-#         cfg = ConfigManager(test_cfg_dir)
-#         cfg.load()
-#         assert_true(exists_config_file(test_cfg_dir))
-#         server_port = cfg.getint('System', 'server_port')
-#         assert_equal(server_port, int(DEFAULT_CONFIG['System']['server_port']))
-#     finally:
-#         cleanup_configuration(test_cfg_dir)
-#         os.rmdir(test_cfg_dir)
 
 
 def test_changed_fields_are_overwritten():
@@ -214,7 +193,7 @@ def test_obsolete_fields_are_removed():
 def test_nonwritable_changed_fields_are_not_overwritten():
     old_config = filerockclient.config.DEFAULT_CONFIG
     filerockclient.config.DEFAULT_CONFIG = COMPLEX_CONFIG_FILE
-    filerockclient.config.DONT_OVERWRITE = [('System', 'field1')]
+    filerockclient.config.DONT_OVERWRITE_ON_MERGE = [('System', 'field1')]
     test_cfg_dir = get_current_dir()
     create_config_file(test_cfg_dir, OBSOLETE_CONFIG_FILE)
     try:
@@ -224,14 +203,48 @@ def test_nonwritable_changed_fields_are_not_overwritten():
         assert_equal(cfg.get('System', 'field1'), 'f1')
     finally:
         filerockclient.config.DEFAULT_CONFIG = old_config
-        filerockclient.config.DONT_OVERWRITE = []
+        filerockclient.config.DONT_OVERWRITE_ON_MERGE = []
+        cleanup_configuration(test_cfg_dir)
+
+
+def test_missing_fields_in_nonwriteable_section_are_created():
+    old_config = filerockclient.config.DEFAULT_CONFIG
+    filerockclient.config.DEFAULT_CONFIG = COMPLEX_CONFIG_FILE
+    filerockclient.config.DONT_OVERWRITE_ON_MERGE = [('System', '*')]
+    test_cfg_dir = get_current_dir()
+    create_config_file(test_cfg_dir, OBSOLETE_CONFIG_FILE)
+    try:
+        cfg = ConfigManager(test_cfg_dir)
+        cfg.load()
+        assert_true(cfg.has_option('System', 'server_hostname'))
+        assert_equal(cfg.get('System', 'server_hostname'), 'service.filerock.com')
+    finally:
+        filerockclient.config.DEFAULT_CONFIG = old_config
+        filerockclient.config.DONT_OVERWRITE_ON_MERGE = []
+        cleanup_configuration(test_cfg_dir)
+
+
+def test_changed_fields_in_nonwriteable_section_are_not_overwritten():
+    old_config = filerockclient.config.DEFAULT_CONFIG
+    filerockclient.config.DEFAULT_CONFIG = COMPLEX_CONFIG_FILE
+    filerockclient.config.DONT_OVERWRITE_ON_MERGE = [('System', '*')]
+    test_cfg_dir = get_current_dir()
+    create_config_file(test_cfg_dir, OBSOLETE_CONFIG_FILE)
+    try:
+        cfg = ConfigManager(test_cfg_dir)
+        cfg.load()
+        assert_true(cfg.has_option('System', 'field1'))
+        assert_equal(cfg.get('System', 'field1'), 'f1')
+    finally:
+        filerockclient.config.DEFAULT_CONFIG = old_config
+        filerockclient.config.DONT_OVERWRITE_ON_MERGE = []
         cleanup_configuration(test_cfg_dir)
 
 
 def test_nondeletable_obsolete_fields_are_not_removed():
     old_config = filerockclient.config.DEFAULT_CONFIG
     filerockclient.config.DEFAULT_CONFIG = COMPLEX_CONFIG_FILE
-    filerockclient.config.DONT_OVERWRITE = [('System', 'field0')]
+    filerockclient.config.DONT_OVERWRITE_ON_MERGE = [('System', 'field0')]
     test_cfg_dir = get_current_dir()
     create_config_file(test_cfg_dir, OBSOLETE_CONFIG_FILE)
     try:
@@ -240,15 +253,73 @@ def test_nondeletable_obsolete_fields_are_not_removed():
         assert_false(cfg.has_option('System', 'field0'))
     finally:
         filerockclient.config.DEFAULT_CONFIG = old_config
-        filerockclient.config.DONT_OVERWRITE = []
+        filerockclient.config.DONT_OVERWRITE_ON_MERGE = []
         cleanup_configuration(test_cfg_dir)
 
 
+def test_autodiscovery_fields_are_parsed():
+    old_discovery = filerockclient.config.AUTO_DISCOVERY
+    filerockclient.config.AUTO_DISCOVERY = {
+        ('Application Paths', 'to_auto_discover'): lambda: 'auto_discovered'
+    }
+    test_cfg_dir = get_current_dir()
+    create_config_file(test_cfg_dir, COMPLEX_CONFIG_FILE)
+    try:
+        cfg = ConfigManager(test_cfg_dir)
+        cfg.load()
+        value = cfg.get('Application Paths', 'to_auto_discover')
+        assert_equal(value, 'auto_discovered')
+    finally:
+        filerockclient.config.AUTO_DISCOVERY = old_discovery
+        cleanup_configuration(test_cfg_dir)
 
+
+def test_autodiscovery_fields_are_not_saved():
+    old_discovery = filerockclient.config.AUTO_DISCOVERY
+    filerockclient.config.AUTO_DISCOVERY = {
+        ('Application Paths', 'to_auto_discover'): lambda: 'auto_discovered'
+    }
+    test_cfg_dir = get_current_dir()
+    create_config_file(test_cfg_dir, COMPLEX_CONFIG_FILE)
+    try:
+        cfg = ConfigManager(test_cfg_dir)
+        cfg.load()
+        value = cfg.get('Application Paths', 'to_auto_discover')
+        assert_equal(value, 'auto_discovered')
+        cfg.write_to_file()
+        plain_cfg = SafeConfigParser()
+        with codecs.open(os.path.join(test_cfg_dir, CONFIG_FILE_NAME), encoding='utf-8_sig') as fp:
+            plain_cfg.readfp(fp)
+        value = plain_cfg.get('Application Paths', 'to_auto_discover')
+        assert_equal(value, '<AUTO-DISCOVERY>')
+    finally:
+        filerockclient.config.AUTO_DISCOVERY = old_discovery
+        cleanup_configuration(test_cfg_dir)
+
+
+def test_autodiscovery_fields_are_saved_if_modified():
+    old_discovery = filerockclient.config.AUTO_DISCOVERY
+    filerockclient.config.AUTO_DISCOVERY = {
+        ('Application Paths', 'to_auto_discover'): lambda: 'auto_discovered'
+    }
+    test_cfg_dir = get_current_dir()
+    create_config_file(test_cfg_dir, COMPLEX_CONFIG_FILE)
+    try:
+        cfg = ConfigManager(test_cfg_dir)
+        cfg.load()
+        cfg.set('Application Paths', 'to_auto_discover', 'something')
+        cfg.write_to_file()
+        plain_cfg = SafeConfigParser()
+        with codecs.open(os.path.join(test_cfg_dir, CONFIG_FILE_NAME), encoding='utf-8_sig') as fp:
+            plain_cfg.readfp(fp)
+        value = plain_cfg.get('Application Paths', 'to_auto_discover')
+        assert_equal(value, 'something')
+    finally:
+        filerockclient.config.AUTO_DISCOVERY = old_discovery
+        cleanup_configuration(test_cfg_dir)
 
 
 # Helper functions:
-
 
 def get_current_dir():
     return os.path.dirname(os.path.abspath(__file__))

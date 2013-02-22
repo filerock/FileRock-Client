@@ -27,9 +27,6 @@
 """
 This is the warebox_cache module.
 
-
-
-
 ----
 
 This module is part of the FileRock Client.
@@ -41,7 +38,7 @@ FileRock Client is licensed under GPLv3 License.
 """
 
 import logging
-from filerockclient.databases.sqlite_cache import SQLiteCache
+from filerockclient.databases.abstract_cache import AbstractCache
 
 TABLE_NAME = u'warebox_cache'
 
@@ -53,7 +50,7 @@ SCHEMA = [u'pathname text',
 KEY = u'pathname'
 
 
-class WareboxCache(SQLiteCache):
+class WareboxCache(AbstractCache):
 
     def __init__(self, database_file):
 #         logger = logging.getLogger('FR.').getChild(self.__class__.__name__)
@@ -65,8 +62,8 @@ class WareboxCache(SQLiteCache):
 
 if __name__ == '__main__':
     wc = WareboxCache('./warebox_cache_temp')
-    wc.insert(('pippo',12,'blabla','1234'))
-    wc.insert(('pipo',12,'blabla','1234'))
-    print wc.all
-    print wc.all_keys
+    wc.insert_record('pippo', 12, 'blabla', '1234')
+    wc.insert_record('pipo', 12, 'blabla', '1234')
+    print wc.get_all_records()
+    print wc.get_all_keys()
     wc.destroy()

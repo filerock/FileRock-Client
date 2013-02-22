@@ -27,9 +27,6 @@
 """
 This is the hashes module.
 
-
-
-
 ----
 
 This module is part of the FileRock Client.
@@ -40,46 +37,37 @@ FileRock Client is licensed under GPLv3 License.
 
 """
 
-import os
 import logging
 
-from operator import itemgetter
-
-
 from filerockclient.util.utilities import get_unix_and_local_timestamp
-from filerockclient.databases.sqlite_cache import SQLiteCache
+from filerockclient.databases.abstract_cache import AbstractCache
 
-fst = itemgetter(0)
-snd = itemgetter(1)
-
-
-def compose(g, f):
-    return lambda x: g(f(x))
 
 TABLE_NAME = u'hashes'
-UNKNOWN_BASIS = 'Unknown'
-SCHEMA = [u'gmtime        INTEGER',
-          u'localtime     TEXT',
-          u'type          TEXT',
+
+SCHEMA = [u'gmtime       INTEGER',
+          u'localtime    TEXT',
+          u'type         TEXT',
           u'prev_hash    TEXT',
           u'next_hash    TEXT']
 
 KEY = u'gmtime'
 
 
-class HashesDB(SQLiteCache):
+class HashesDB(AbstractCache):
 
     def __init__(self, database_file):
         logger = logging.getLogger('FR.').getChild(self.__class__.__name__)
         super(HashesDB, self).__init__(database_file,
-                                           TABLE_NAME,
-                                           SCHEMA,
-                                           KEY,
-                                           logger=logger)
+                                       TABLE_NAME,
+                                       SCHEMA,
+                                       KEY,
+                                       logger=logger)
+        self._logger = self.logger
 
     def add(self, prev_hash, next_hash, user_accepted=False):
         """
-        Adds an hash couple into the db
+        Adds an hash couple into the db.
 
         @param prev_hash: the current hash
         @param next_hash: the next hash
@@ -88,57 +76,32 @@ class HashesDB(SQLiteCache):
                     instead of "commit"
         """
 
-        self.logger.debug(u'Saving following hashes %s %s' %
-                          (prev_hash, next_hash)
-                          )
+        self._logger.debug(u'Saving following hashes %s %s'
+                           % (prev_hash, next_hash))
         if user_accepted:
             record_type = 'useraccept'
         else:
             record_type = 'commit'
 
         if prev_hash is None:
-            prev_hash = UNKNOWN_BASIS
+            prev_hash = 'Unknown'
 
         unix_gmtime, string_localtime = get_unix_and_local_timestamp()
 
         self._recreate_db_if_not_exists()
 
-        result = self.insert_record((unix_gmtime,
-                                  string_localtime,
-                                  record_type,
-                                  prev_hash,
-                                  next_hash
-                                  ))
-        if result:
-            self.logger.debug(u'New hash couple saved (%s, %s, %s)' %
-                              (record_type, prev_hash, next_hash)
-                             )
-        else:
-            self.logger.warning(u'Something went wrong saving hashes \
-                                 (%s, %s, %s)' % (record_type,
-                                                  prev_hash,
-                                                  next_hash)
-                                )
-            return False
-        self.logger.debug('Commit data saved to history')
-        return True
+        self.update_record(unix_gmtime,
+                           string_localtime,
+                           record_type,
+                           prev_hash,
+                           next_hash)
+
+        self._logger.debug(u'New hash couple saved (%s, %s, %s)'
+                           % (record_type, prev_hash, next_hash))
 
     def list(self):
-        return self.all
+        return self.get_all_records()
+
 
 if __name__ == '__main__':
     pass
-#    FILENAME = './hashesDB'
-#    logger = logging.basicConfig()
-#    logging.getLogger('FR').setLevel(logging.DEBUG)
-#    hashDB = HashesDB(FILENAME)
-#
-#    if not hashDB.check_database_file():
-#        hashDB.initialize_new()
-#    hashDB.add('primo', 'secondo')
-#    hashDB.add('secondo', 'terzo')
-#    hashDB.add('quarto', 'quinto')
-#    hashDB.add('quinto', 'sesto', True)
-#    print hashDB.list()
-#
-#    os.unlink(FILENAME)

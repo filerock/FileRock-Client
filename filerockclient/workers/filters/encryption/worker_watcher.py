@@ -43,6 +43,7 @@ FileRock Client is licensed under GPLv3 License.
 import logging
 from filerockclient.workers.filters.abstract.worker_watcher import WorkerWatcher as AbstractWorkerWatcher
 from filerockclient.workers.filters.encryption import utils
+from filerockclient.interfaces import PStatuses
 
 import hashlib
 from task_wrapper import TaskWrapper
@@ -60,11 +61,9 @@ class WorkerWatcher(AbstractWorkerWatcher):
     """
 
 
-    def __init__(self, index, queue, connector, cfg, warebox, enc_dir):
+    def __init__(self, index, queue, connector, cfg, warebox, enc_dir, lockfile_fd):
         """
         Initializes the WorkerWatcher adding configuration object, TaskWrapper and Worker specific classes
-
-        @param index:
 
         """
         AbstractWorkerWatcher.__init__(self, index, queue, connector, 'CryptoWorkerWatcher')
@@ -72,6 +71,7 @@ class WorkerWatcher(AbstractWorkerWatcher):
         self.cfg = cfg
         self.warebox = warebox
         self.enc_dir = enc_dir
+        self.lockfile_fd = lockfile_fd
 
     def _on_init(self):
         """
@@ -84,7 +84,11 @@ class WorkerWatcher(AbstractWorkerWatcher):
         """
         Creates a worker
         """
-        return self.Worker(self.tasks, self.cmd, self.termination, self.cfg)
+        return self.Worker(self.tasks, 
+                           self.cmd,
+                           self.termination,
+                           self.warebox.get_warebox_path(),
+                           self.lockfile_fd)
 
     def _wrap_task(self, task):
         """
@@ -164,6 +168,24 @@ class WorkerWatcher(AbstractWorkerWatcher):
         Applies custom action on new task
         """
         self.__check_enc_dir(self.enc_dir)
+        self.warebox._check_blacklisted_dir()
+
+    def _try_remove(self, pathname):
+        max_retry = 2
+        for i in range(max_retry):
+            try:
+                os.remove(pathname)
+            except Exception:
+                self.logger.debug(u"Failed to delete %s" % pathname)
+                if i == (max_retry-1):
+                    self.logger.debug("Giving up on %s deletion" % pathname)
+                else:
+                    self.logger.debug(u"I'll retry after one second")
+                    time.sleep(1)
+            else:
+                self.logger.debug(u'File %s deleted' % pathname)
+                break
+
 
     def _on_success(self, tw, result):
         """
@@ -172,24 +194,34 @@ class WorkerWatcher(AbstractWorkerWatcher):
         if tw.task.to_encrypt:
             tw.task.storage_size = self.__get_local_file_size(tw.task.encrypted_pathname)
             tw.task.storage_etag = self.__compute_md5_hex(tw.task.encrypted_pathname)
-            tw.task.register_abort_handler(utils.clean_env)
-            tw.task.register_complete_handler(utils.clean_env)
             self.logger.debug(u'Successfully encrypted %s to %s' % (tw.task.pathname, tw.task.encrypted_pathname))
         elif tw.task.to_decrypt:
+            self.warebox.move(tw.task.temp_pathname,
+                              tw.task.pathname,
+                              tw.task.conflicted)
             tw.task.warebox_etag = self.warebox.compute_md5_hex(tw.task.pathname)
             tw.task.warebox_size = self.warebox.get_size(tw.task.pathname)
+
+            lmtime = self.warebox.get_last_modification_time(tw.task.pathname)
+            tw.task.lmtime = lmtime
+            tw.task.notify_pathname_status_change(PStatuses.ALIGNED)
+
             self.logger.debug(u'Successfully decrypted %s to %s' % (tw.task.encrypted_pathname, tw.task.pathname))
             if os.path.exists(tw.task.encrypted_pathname):
-                os.remove(tw.task.encrypted_pathname)
-            self.logger.debug(u'Encrypted file %s deleted' % (tw.task.encrypted_pathname))
+                self._try_remove(tw.task.encrypted_pathname)
+            
+            tw.task.complete()
 
     def _on_fail(self, tw, result):
         """
         Applies custom actions on task if its computation ends unsuccessfully
         """
         if (tw.task.to_encrypt or tw.task.to_decrypt) \
+        and tw.task.encrypted_pathname is not None \
         and os.path.exists(tw.task.encrypted_pathname):
-            os.remove(tw.task.encrypted_pathname)
+            self._try_remove(tw.task.encrypted_pathname)
 
-        if tw.task.to_decrypt and os.path.exists(tw.task.pathname): #if decrypt task fails, also the uncompleted decrypted files have to be deleted
-            os.remove(tw.task.pathname)
+        if tw.task.to_decrypt \
+        and tw.task.temp_pathname is not None \
+        and os.path.exists(tw.task.temp_pathname): #if decrypt task fails, also the uncompleted decrypted files have to be deleted
+            self._try_remove(tw.task.temp_pathname)

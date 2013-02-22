@@ -3,7 +3,44 @@
 FileRock Client - Changelog
 ===========================
 
+Version 0.4.2
+
+- Feb. 21, 2013
+
+New features:
+
+- Added an option to limit the used network bandwidth.
+- Added an option to disable autorunning at system startup.
+- Added an option to disable automatic updating.
+- Locating the static resources (images, certificates, etc.) doesn't
+  depend on the current working directory anymore.
+- Created a setup.py script to install FileRock Client in the system.
+- Now the .app bundle of FileRock Client for Max OS X is signed and
+  doesn't get blocked by OS X [Mountain] Lion's Gatekeeper anymore.
+
+
+Fixed bugs:
+
+- Multiple instances of FileRock Client could be running at the same time.
+- Deadlocks could occur if the application was paused while downloading.
+- The shell extension (win32) after a crash prevented the application to
+  restart if any worker process was still running.
+- The graphical user interface could get very slow in case of many
+  file transfers at the same time.
+- The post-commit procedure didn't transactionally update the session
+  metadata.
+- Recovering an interrupted commit from a previous session didn't
+  properly check the integrity of the session.
+- Downloaded files weren't checked against their actual fingerprint.
+- Pausing the application during a download signaled spurious
+  integrity errors on the user data.
+- Other spurious integrity errors have been fixed.
+
+
+---------------------------
+
 Version 0.4.0 - Codename "Maya"
 
 - Dec. 21, 2012 - First open source release
 
+---------------------------

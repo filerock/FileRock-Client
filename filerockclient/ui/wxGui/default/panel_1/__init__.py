@@ -45,20 +45,19 @@ import logging
 import os
 import sys
 import time
-
-from os.path import join as joinpath
-from filerockclient.ui.wxGui import Utils, Messages
-
-from filerockclient.interfaces import GStatus, GStatuses as gss
-from filerockclient.ui.wxGui.Utils import MywxStaticText, ICON_PATH,\
-                                        STATEMESSAGES, IMAGE_PATH
 from threading import Thread
+
+from filerockclient.ui.wxGui import Utils, Messages
+from filerockclient.interfaces import GStatus, GStatuses as gss
+from filerockclient.ui.wxGui.Utils import MywxStaticText, STATEMESSAGES
+from filerockclient.ui.wxGui.constants import IMAGE_PATH, ICON_PATH
+
 
 DATETIMEFORMAT = "%a %b %d %H:%M:%S %Y"
 STATEBITMAP_PATH = os.path.join(ICON_PATH, 'Status_icons')
-NO_CONNECTION_ROBOT = "./data/images/noconnection_robot_200x200.png"
-NO_ALIGNED_STATUS = "./data/icons/Status_icons/NOTALIGNED.png"
-QUESTION_ICON = "./data/images/question.png"
+NO_CONNECTION_ROBOT = os.path.join(IMAGE_PATH, "noconnection_robot_200x200.png")
+NO_ALIGNED_STATUS = os.path.join(ICON_PATH, "Status_icons", "NOTALIGNED.png")
+QUESTION_ICON = os.path.join(IMAGE_PATH, "question.png")
 
 if sys.platform.startswith('darwin'):
     TextCtrl = MywxStaticText
@@ -238,7 +237,7 @@ class Panel1(wx.Panel):
         sizer_21.Add(sizer_2, 0, wx.ALL|wx.ALIGN_CENTER_HORIZONTAL|wx.ALIGN_CENTER_VERTICAL, 15)
         sizer_6.Add(sizer_21, 1, wx.ALL|wx.ALIGN_CENTER_HORIZONTAL|wx.ALIGN_CENTER_VERTICAL, 5)
         sizer_3.Add(sizer_6, 1, wx.LEFT|wx.RIGHT|wx.BOTTOM|wx.EXPAND, 5)
-        sizer_4.Add(sizer_3, 0, wx.EXPAND, 0)
+        sizer_4.Add(sizer_3, 1, wx.EXPAND, 0)
         self.panel_1.SetSizer(sizer_4)
         self.Layout()
 

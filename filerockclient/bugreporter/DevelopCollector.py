@@ -50,6 +50,7 @@ class DevelopCollector(Collector):
     """
 
     def send(self):
+        self.logger.info(self.details['exc_info'])
         self.logger.info(
             u'Error reporting in developer mode,' +
             ' no data will be actually sent...')

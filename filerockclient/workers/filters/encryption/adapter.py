@@ -54,15 +54,26 @@ class Adapter(object):
     Adapter for the crypto filter
     """
 
-    def __init__(self, cfg, warebox, output_queue, enc_dir='enc', first_startup=False):
+    def __init__(self, cfg, warebox, output_queue, lockfile_fd,
+                 enc_dir='enc', first_startup=False):
         """
         Constructor
-         @param cfg: the config object
-         @param warebox: the warebox object
-         @param output_queue: the queue where task are send back
-         @param enc_dir: the directory used for encrypt the data, it will create
-         into user temp dir
-         @param first_startup: boolean self explaining
+
+        @param cfg:
+                    the config object
+        @param warebox:
+                    the warebox object
+        @param output_queue:
+                    the queue where task are send back
+        @param lockfile_fd:
+                    File descriptor of the lock file which ensures there
+                    is only one instance of FileRock Client running.
+                    Child processes have to close it to avoid stale locks.
+        @param enc_dir:
+                    the directory used for encrypt the data, it will create
+                    into user temp dir
+        @param first_startup:
+                    boolean self explaining
         """
         logger_prefix = "FR.CryptoFilter."
         self.cfg = cfg
@@ -70,10 +81,11 @@ class Adapter(object):
         self.logger = logging.getLogger(logger_prefix+self.__class__.__name__)
         self.input_queue = Queue.Queue()
         self.output_queue = output_queue
-        self.enc_dir = os.path.join(self.cfg.get('User', 'temp_dir'), enc_dir)
+        self.enc_dir = os.path.join(self.cfg.get('Application Paths', 'temp_dir'), enc_dir)
         if first_startup:
             CryptoUtils.create_encrypted_dir(warebox, self.logger)
-        self.crypto_filter = CryptoFilter(self.input_queue, self.output_queue, NUMBER_OF_WORKER, cfg, warebox)
+        self.crypto_filter = CryptoFilter(self.input_queue, self.output_queue,
+                             NUMBER_OF_WORKER, cfg, warebox, lockfile_fd)
 
     def check_precondition(self, ui):
         """

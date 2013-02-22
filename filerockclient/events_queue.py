@@ -257,8 +257,9 @@ class EventsQueue(object):
                 self.map.dropConstraintFrom(file_operation.pathname)
             self.map.setStatus('OK', file_operation.pathname)
             self.map.unlock(file_operation.pathname)
-            self.application.notify_pathname_status_change(file_operation, PStatuses.ALIGNED)
-            
+            self.application.notify_pathname_status_change(
+                                    file_operation.pathname, PStatuses.ALIGNED)
+
 
     def _create_pathname_operation(self, status, pathname, oldpath=None):
         """

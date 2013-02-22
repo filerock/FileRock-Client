@@ -108,6 +108,7 @@ class Notify_user(object):
             dlg = MyMessageDialog(None, -1, '')
             dlg.putInfos(message, title, style, bold, warning)
             dlg.Show()
+            dlg.Raise()
 
         style = wx.OK
         # schedule for GUI thread the dialog to pop up asap

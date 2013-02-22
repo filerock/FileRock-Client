@@ -46,14 +46,13 @@ from filerockclient.databases.hashes import HashesDB
 from filerockclient.events_queue import EventsQueue
 from filerockclient.storage_connector import StorageConnector
 from filerockclient.warebox import Warebox
-
+from filerockclient.constants import RUNNING_FROM_SOURCE, RUNNING_INSTALLED
 from filerockclient.serversession.server_session import ServerSession
 from filerockclient.databases.storage_cache import StorageCache
 from filerockclient.serversession.startup_synchronization import \
     StartupSynchronization
 from filerockclient.linker import Linker
 from filerockclient.updater.UpdaterBase import PlatformUpdater
-from filerockclient.updater.UpdaterBase import CURRENT_CLIENT_VERSION
 from filerockclient.exceptions import UpdateRequestedException
 from filerockclient.exceptions import UnsupportedPlatformException
 from filerockclient.exceptions import ClientUpdateInfoRetrievingException
@@ -67,9 +66,11 @@ from filerockclient.ui.ui_controller import UIController
 from filerockclient.workers.filters.encryption import utils as CryptoUtils
 from filerockclient.util.multi_queue import MultiQueue
 from filerockclient.util.scheduler import Scheduler
-from filerockclient.osconfig import OsConfig
 from filerockclient.databases import metadata
 from filerockclient import config
+from filerockclient.osconfig import OsConfig
+from filerockclient.constants import VERSION as CURRENT_CLIENT_VERSION
+
 
 
 class Core(object):
@@ -83,8 +84,10 @@ class Core(object):
     for registering UI objects.
     """
 
-    def __init__(self, configManager, startupSlide, show_panel,
-                 command_queue, auto_start=True, restart_after_minute=-1):
+    def __init__(self, configManager, startupSlide, show_panel, command_queue,
+                 cmdline_args, lockfile_fd, auto_start=True,
+                 restart_after_minute=-1):
+
         """FileRock client initialization.
 
         Loads and configures all application components.
@@ -100,12 +103,18 @@ class Core(object):
         @param command_queue:
                     Instance of Queue.Queue where to put commands for
                     filerockclient.application.Application.
+        @param cmdline_args:
+                    List of arguments which the client has been invoked with.
+        @param lockfile_fd:
+                    File descriptor of the lock file which ensures there
+                    is only one instance of FileRock Client running.
+                    Child processes have to close it to avoid stale locks.
         @param auto_start:
                     Boolean telling whether the client should automatically
                     connect to the server after initialization.
         @param restart_after_minute:
                     Number of minutes after which the application must
-                    be restarted. There is not restart to do if it is
+                    be restarted. There is no restart to do if it is
                     less than 0.
         """
         self.logger = logging.getLogger("FR")
@@ -113,18 +122,20 @@ class Core(object):
         self.startupSlide = startupSlide
         self.show_panel = show_panel
         self.auto_start = auto_start
+        self.cmdline_args = cmdline_args
+        self.lockfile_fd = lockfile_fd
         self.restart_after_time = restart_after_minute
         self.sys_config_path = self.cfg.get_config_dir()
-        self.temp_dir = self.cfg.get('User', 'temp_dir')
+        self.temp_dir = self.cfg.get('Application Paths', 'temp_dir')
 
         self.logger.info(
             u"Hello, this is FileRock client (version %s)"
             % CURRENT_CLIENT_VERSION)
 
         self.logger.debug(u"Initializing Metadata DB...")
-        database_file = self.cfg.get('Client', 'metadatadb')
+        database_file = self.cfg.get('Application Paths', 'metadatadb')
         self._metadata_db = MetadataDB(database_file)
-        self._metadata_db_exists_at_start = self._metadata_db._file_exists()
+        self._metadata_db_exists_at_start = not self._metadata_db.recreated
 
         self.logger.debug(u"Initializing InternalFacade...")
         self._internal_facade = InternalFacade(
@@ -146,16 +157,21 @@ class Core(object):
         self._scheduler = Scheduler()
 
         self.logger.debug(u"Initializing Hashes DB...")
-        hashesdb_file = self.cfg.get('Client', 'hashesdb')
+        hashesdb_file = self.cfg.get('Application Paths', 'hashesdb')
         self.hashesDB = HashesDB(hashesdb_file)
 
         self.logger.debug(u"Initializing Storage Cache...")
         self.storage_cache = StorageCache(
-                    self.cfg.get('Client', 'storage_cache_db'))
+                    self.cfg.get('Application Paths', 'storage_cache_db'))
 
         self.logger.debug(u"Initializing Linker...")
         self.linker = Linker(self.cfg, self._ui_controller)
-        self.os_config_manager = OsConfig()
+
+        self.logger.debug(u"Initializing OS settings manager...")
+        self.os_settings_manager = OsConfig(
+                                        cmdline_args=self.cmdline_args
+                                    )
+
         self._warebox = None
         self.queue = None
         self.connector = None
@@ -206,7 +222,7 @@ class Core(object):
             self.storage_cache, self.startup_synchronization,
             self.FSWatcher, self.linker,
             self._metadata_db, self.hashesDB, self._internal_facade,
-            self._ui_controller, auto_start=self.auto_start,
+            self._ui_controller, self.lockfile_fd, auto_start=self.auto_start,
             input_queue=session_queue, scheduler=self._scheduler)
 
         self.logger.debug(u"Initialization completed successfully")
@@ -236,14 +252,16 @@ class Core(object):
         Any setup aimed at integrating FileRock with the OS should be
         done here.
         """
-        # Start client on system startup
-        value = self.cfg.get('User Defined Options', 'launch_on_startup')
-        launch_on_startup = (value == u'True')
-        self.os_config_manager.set_autostart(enable=launch_on_startup)
+        
+        # Start client on system startup (only for installed clients)
+        if RUNNING_INSTALLED:
+            value = self.cfg.get('User Defined Options', 'launch_on_startup')
+            launch_on_startup = (value == u'True')
+            self.os_settings_manager.set_autostart(enable=launch_on_startup)
 
         # Add FileRock to whitelisted tray icons if necessary
-        if not self.os_config_manager.is_systray_icon_whitelisted():
-            self.os_config_manager.whitelist_tray_icon()
+        if not self.os_settings_manager.is_systray_icon_whitelisted():
+            self.os_settings_manager.whitelist_tray_icon()
             self._ui_controller.ask_for_user_input('logout_required')
             raise LogOutRequiredException()
 
@@ -254,10 +272,10 @@ class Core(object):
                     Absolute filesystem pathname of the directory that
                     will be the new warebox.
         """
-        self.cfg.set('User', 'warebox_path', new_warebox)
+        self.cfg.set('Application Paths', 'warebox_path', new_warebox)
         self.cfg.write_to_file()
         self._metadata_db.set('last_warebox_path',
-                              self.cfg.get('User', 'warebox_path'))
+                              self.cfg.get('Application Paths', 'warebox_path'))
         warebox = Warebox(self.cfg)
         CryptoUtils.recreate_encrypted_dir(warebox, self.logger)
         self._clean_env()
@@ -276,19 +294,22 @@ class Core(object):
 
         if last_warebox is None and not self._metadata_db_exists_at_start:
             result = self._ui_controller.ask_for_user_input(
-                'warebox_path', self.cfg.get('User', 'warebox_path'))
+                                        'warebox_path',
+                                        self.cfg.get('Application Paths',
+                                                     'warebox_path')
+                    )
             if result['result']:
-                old_warebox = cfg.get('User', 'warebox_path')
+                old_warebox = cfg.get('Application Paths', 'warebox_path')
                 new_warebox = result['warebox_path']
                 if self._warebox_need_merge(result['warebox_path']):
                     ret = self._ui_controller.ask_for_user_input(
                         'warebox_not_empty', old_warebox, new_warebox)
                     if ret != 'ok':
-                        self._metadata_db.delete()
+                        self._metadata_db.destroy()
                         return False
                 self._change_warebox_path(new_warebox)
             else:
-                self._metadata_db.delete()
+                self._metadata_db.destroy()
                 return False
 
         return True
@@ -304,10 +325,10 @@ class Core(object):
                     True if the passed warebox will need a merge, False
                     otherwise.
         """
-        old = self.cfg.get('User', 'warebox_path')
-        self.cfg.set('User', 'warebox_path', warebox_path)
+        old = self.cfg.get('Application Paths', 'warebox_path')
+        self.cfg.set('Application Paths', 'warebox_path', warebox_path)
         tmp_warebox = Warebox(self.cfg)
-        self.cfg.set('User', 'warebox_path', old)
+        self.cfg.set('Application Paths', 'warebox_path', old)
         content = tmp_warebox.get_content(recursive=False)
         if CryptoUtils.ENCRYPTED_FOLDER_NAME in content:
             content.remove(CryptoUtils.ENCRYPTED_FOLDER_NAME)
@@ -330,7 +351,7 @@ class Core(object):
         last_user = self._metadata_db.try_get('last_username')
         curr_user = self.cfg.get('User', 'username')
         last_warebox = self._metadata_db.try_get('last_warebox_path')
-        curr_warebox = self.cfg.get('User', 'warebox_path')
+        curr_warebox = self.cfg.get('Application Paths', 'warebox_path')
 
         warebox_changed = last_warebox != curr_warebox
         user_changed = last_user is None or last_user != curr_user
@@ -367,10 +388,11 @@ class Core(object):
         Startup routine that makes initial checks and starts threads.
         All threads except those that run UIs are started from here.
         """
-        self.logger.debug("Current configuration:\n%s" % self.cfg)
         self._check_for_updates()
         self._apply_os_config()
         self._show_welcome(self.cfg)
+
+        self._patch_transition_from_release_0_4_0_no_null_basis()
 
         if self.storage_cache.recreated or not self.linker.is_linked():
             self.logger.debug('Storage cache was recreated or not linked')
@@ -411,7 +433,7 @@ class Core(object):
         blacklist_hash = self._metadata_db.try_get('blacklist_hash')
         if blacklist_hash is None or blacklist_hash != blacklist_currhash:
             self.logger.debug('Blacklist changed, cleaning cache')
-            for pathname in map(lambda x: x[0], self.storage_cache.get_all()):
+            for pathname in map(lambda x: x[0], self.storage_cache.get_all_records()):
                 if self._warebox.is_blacklisted(pathname):
                     self.storage_cache.delete_record(pathname)
             self._metadata_db.set('blacklist_hash', blacklist_currhash)
@@ -423,6 +445,23 @@ class Core(object):
             self._schedule_a_start()
         self._ui_controller.notify_core_ready()
         self._clean_os_label()
+
+    def _patch_transition_from_release_0_4_0_no_null_basis(self):
+        """Patch that handles an erroneous existence of an empty
+        trusted basis in the metadata.
+
+        The old FileRock releases used to automatically persist a None
+        trusted basis if the 'trusted_basis' record didn't exist.
+        However, now the metadata database has changed and would give an
+        error on getting a None basis.
+
+        To be removed as soon as all clients are updated.
+        """
+        trusted_basis = self._metadata_db.try_get('trusted_basis')
+        exists = self._metadata_db.exist_record('trusted_basis')
+        if exists and not trusted_basis:
+            self.logger.info("Deleting a null trusted basis")
+            self._metadata_db.delete_key('trusted_basis')
 
     def _clean_os_label(self):
         """Reset all labels of the OSX shell extension UI.
@@ -441,13 +480,15 @@ class Core(object):
     def _show_welcome(self, cfg):
         """Displays the presentation slides to the user, if needed.
         """
-        no_welcome = self._metadata_db.try_get(
-            'No welcome on startup')
-        no_welcome = no_welcome is not None and no_welcome != u'0'
-        if self.startupSlide and not no_welcome:
+#        no_welcome = self._metadata_db.try_get('No welcome on startup')
+#        no_welcome = no_welcome is not None and no_welcome != u'0'
+        show = self.cfg.getboolean(config.USER_DEFINED_OPTIONS,'show_slideshow')
+
+        if self.startupSlide and show:
             result = self._ui_controller.show_welcome(cfg, True)
-            show_welcome = result['show welcome on startup']
-            self._metadata_db.set('No welcome on startup', not show_welcome)
+            show = str(result['show welcome on startup'])
+            self.cfg.set(config.USER_DEFINED_OPTIONS,'show_slideshow', show)
+            self.cfg.write_to_file()
 
     def _check_for_updates(self):
         """Check if an update for FileRock is available.
@@ -455,11 +496,17 @@ class Core(object):
         If a new a client version is found, user is prompted to download
         and install the upgrade.
         """
+
+        # Never check for updates when running from source
+        if RUNNING_FROM_SOURCE:
+            self.logger.debug(u"Skipping update procedures (client is running from sources)")
+            return
+        
         # Get updater class for current platform (win32/darwin/linux2)
         try:
             updater = PlatformUpdater(
-                                self.cfg.get('User', 'temp_dir'),
-                                self.cfg.get('System', 'webserver_ca_chain'))
+                                self.cfg.get('Application Paths', 'temp_dir'),
+                                self.cfg.get('Application Paths', 'webserver_ca_chain'))
         # Note: this should never happen
         except UpdateRequestedFromTrunkClient as e:
             self.logger.debug(u"Skipping update procedures (running from trunk)")
@@ -478,8 +525,12 @@ class Core(object):
             self.logger.info(
                 u"Current client version (%s) is obsolete, latest is %s"
                 % (CURRENT_CLIENT_VERSION, last_version))
-            # Prompt user to perform update
-            user_choice = updater.prompt_user_for_update(self._ui_controller)
+
+            if self.cfg.get(u"User Defined Options", "auto_update") == u'True':
+                user_choice = True
+            else:
+                # If cfg param 'auto_update' is off, prompt user to perform update
+                user_choice = updater.prompt_user_for_update(self._ui_controller)
 
             if user_choice:
                 raise UpdateRequestedException()

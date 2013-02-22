@@ -198,7 +198,9 @@ class WorkerWatcher(threading.Thread):
 
         @param task: instance of filerockclient.pathname_operation.PathnameOperation
         """
-        self.connector.send_task_back(task)
+
+        if (not task.is_completed()):
+            self.connector.send_task_back(task)
 
     def __send_task_to_process(self, tw):
         """

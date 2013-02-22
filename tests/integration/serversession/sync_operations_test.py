@@ -103,7 +103,7 @@ def test_nothing_to_sync_from_clean_state(
     # No data on the storage, in the warebox or in the storage cache.
     # We expect that nothing has happened.
     assert_false(components['mock']['ui_controller'].ask_for_user_input.called)
-    assert_equal(components['real']['storage_cache'].get_all(), [])
+    assert_equal(components['real']['storage_cache'].get_all_records(), [])
     assert_true(components['real']['input_queue'].empty(['operation']))
 
 
@@ -184,7 +184,7 @@ def test_download_operations_from_clean_state(
 
     # We expect to download a file
     assert_true(components['mock']['ui_controller'].ask_for_user_input.called)
-    assert_equal(components['real']['storage_cache'].get_all(), [])
+    assert_equal(components['real']['storage_cache'].get_all_records(), [])
     assert_false(components['real']['input_queue'].empty(['operation']))
     operation, _ = components['real']['input_queue'].get(['operation'])
     assert_equal(operation.pathname, 'File.txt')

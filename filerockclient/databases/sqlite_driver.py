@@ -35,7 +35,9 @@ handling. This means that auto-commit is turned off and that a
 transaction is implicitly started before a Data Modification Language
 (DML) statement (i.e. INSERT/UPDATE/DELETE/REPLACE) if there isn't one
 already, and implicitly committed before a non-DML, non-query statement
-(i.e. anything other than SELECT or the aforementioned).
+(i.e. anything other than SELECT or the aforementioned). Please pay
+attention to this: executing any maintenance command (e.g. VACUUM) makes
+any open transaction commit, no matter what.
 
 We prefer to use the implicit transaction handling as little as
 possible. Although there is no way to explicitly start a transaction
@@ -79,7 +81,6 @@ FileRock Client is licensed under GPLv3 License.
 import logging
 import sqlite3
 import threading
-import os
 
 
 class SQLiteDB(object):
@@ -211,28 +212,6 @@ class SQLiteDB(object):
                 % (statement, eargs, e.args[0]))
             raise
 
-    def check_database_file(self, query):
-        """
-        Check if database file is present and is a regular sqlite3
-        database file.
-
-        Check is performed attempting the given query.
-        """
-
-        if not os.path.exists(self._filename):
-            self._logger.debug(u'Database file "%s" not found. ' %
-                              self._filename)
-            return False
-
-        try:
-            connection = self._get_connection()
-            connection.execute(query)
-            return True
-        except Exception:
-            self._logger.debug(
-                u'Error attempting query "%s" with "%s".'
-                ' Database check will return False.' % (self._filename, query))
-            return False
 
 if __name__ == '__main__':
     pass

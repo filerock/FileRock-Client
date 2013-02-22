@@ -48,6 +48,9 @@ class BasisMismatchState(ServerSessionState):
 
     accepted_messages = ServerSessionState.accepted_messages
 
+    def _receive_next_message(self):
+        return self._context._input_queue.get(['usercommand'])
+
     def _on_entering(self):
         self.logger.debug('State changed')
         self._context._internal_facade.set_global_status(

@@ -91,7 +91,7 @@ class TransactionManager(object):
             folder = u"%s%s/" % (folder, token)
             folders.append(folder)
         for folder in folders:
-            if not self.storage_cache.exists_record(folder):
+            if not self.storage_cache.exist_record(folder):
                 return folder
         return None
 
@@ -111,10 +111,10 @@ class TransactionManager(object):
                 raise Exception("TransactionManager collapsing a DELETE operation with another unexpected verb: %s" % conflicting_operation)
             self._cancel_operation(conflicting_operation)
 
-        if self.storage_cache.exists_record(operation.pathname):
+        if self.storage_cache.exist_record(operation.pathname):
             #if folder check if it is empty on the raw storage
             if operation.is_directory():
-                if self.storage_cache.exists_record_proper_prefix(operation.pathname):
+                if self.storage_cache.exist_record_proper_prefix(operation.pathname):
                     #we know that directory is not empty
                     session_state.postpone_operation(operation)
                     session_state.on_commit_necessary_to_proceed()
@@ -141,7 +141,7 @@ class TransactionManager(object):
 
 
     def _handle_remote_copy_operation(self, index, operation, session_state):
-        if not self.storage_cache.exists_record(operation.oldpath):
+        if not self.storage_cache.exist_record(operation.oldpath):
             try:
                 source_upload_operation = self.transaction.get_by_pathname(operation.oldpath)
                 if not source_upload_operation.verb in ['UPLOAD', 'REMOTE_COPY']:

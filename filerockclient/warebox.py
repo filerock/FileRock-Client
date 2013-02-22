@@ -119,7 +119,7 @@ class Warebox(object):
         @param cfg:
                     Instance of filerockclient.config.ConfigManager.
         """
-        path = cfg.get(USER_SECTION, 'warebox_path')
+        path = cfg.get('Application Paths', 'warebox_path')
         assert path.__class__.__name__ == 'unicode', \
             'Non unicode-ness detected in Warebox.__init__: %r' % path
         self._warebox_path = path
@@ -127,12 +127,12 @@ class Warebox(object):
 #        self.logger = self._logger
         self._check_warebox()
         self._check_blacklisted_dir()
-        self._clean_temp_dir()
+#         self._clean_temp_dir()
         self.blacklist = Blacklist(BLACKLISTED_DIRS,
                                    BLACKLISTED_FILES,
                                    CONTAINS_PATTERN,
                                    EXTENTIONS)
-        self.cache = WareboxCache(cfg.get(CLIENT_SECTION, 'warebox_cache_db'))
+        self.cache = WareboxCache(cfg.get('Application Paths', 'warebox_cache_db'))
 
     def get_warebox_path(self):
         """
@@ -201,6 +201,12 @@ class Warebox(object):
         blacklisted_dir = self.absolute_pathname(BLACKLISTED_DIR)
         if self._check_warebox():
             if os.path.exists(blacklisted_dir) and os.path.isdir(blacklisted_dir):
+                if sys.platform.startswith('win'):
+                    import win32con
+                    import win32file
+                    #make the file hidden
+                    win32file.SetFileAttributesW(
+                        blacklisted_dir, win32con.FILE_ATTRIBUTE_HIDDEN)
                 return True
             elif os.path.exists(blacklisted_dir) and not os.path.isdir(blacklisted_dir):
                 os.unlink(blacklisted_dir)
@@ -470,7 +476,8 @@ class Warebox(object):
             if not recursive:
                 break
 
-        self.cache.delete_records(self.cache.all_keys.difference(pathnames_set))
+        all_pathnames = set(self.cache.get_all_keys())
+        self.cache.delete_records(all_pathnames.difference(pathnames_set))
         return pathnames
 
     def get_size(self, pathname):
@@ -515,7 +522,7 @@ class Warebox(object):
         @return
                     Boolean.
         """
-        if self.cache.is_in(pathname):
+        if self.cache.exist_record(pathname):
             _, csize, clmtime, cetag = self.cache.get_record(pathname)
             if (clmtime == unicode(self.get_last_modification_time(pathname)))\
             and (csize) == self.get_size(pathname):
@@ -576,17 +583,18 @@ class Warebox(object):
         @param md5_hex:
                     The hexadecimal MD5 hash of the pathname content.
         """
-        if self.cache.is_in(pathname):
-            self.cache.update_record(
+        if self.cache.exist_record(pathname):
+            self.cache.update_record_fields(
                               pathname,
                               size=self.get_size(pathname),
                               lmtime=self.get_last_modification_time(pathname),
                               etag=md5_hex)
         else:
-            self.cache.insert((unicode(pathname),
+            self.cache.update_record(
+                               unicode(pathname),
                                self.get_size(pathname),
                                self.get_last_modification_time(pathname),
-                               md5_hex))
+                               md5_hex)
 
     def compute_md5_hex(self, pathname):
         """Compute the hexadecimal text representation of the MD5 hash
@@ -734,7 +742,7 @@ class Warebox(object):
                 except CantWritePathnameException:
                     raise
                 except Exception as e:
-                    raise CantWritePathnameException(e.message,
+                    raise CantWritePathnameException(e,
                                                      filename=dest,
                                                      source=source)
             else:
@@ -744,7 +752,7 @@ class Warebox(object):
                 except CantWritePathnameException:
                     raise
                 except Exception as e:
-                    raise CantWritePathnameException(e.message)
+                    raise CantWritePathnameException(e)
 
 
 if __name__ == '__main__':

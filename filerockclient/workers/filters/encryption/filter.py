@@ -52,19 +52,24 @@ class CryptoFilter(AbstractFilter):
     it pass the tasks to a pool of processes and wait the completion on a Queue
     """
 
-    def __init__(self, operationQueue, resultsQueue, maxWorker, cfg, warebox):
+    def __init__(self, operationQueue, resultsQueue, maxWorker, cfg, warebox, lockfile_fd):
         """
         @param operationQueue: the input queue, cryptoFilter reads the new tasks from it
         @param resultsQueue: the output queue, the managed tasks will be sent back through it
         @param maxWorker: the maximum number of workers running at the same time
         @param cfg: an instance of ConfigurationManager
         @param warebox: an instance of Warebox class
+        @param lockfile_fd:
+                    File descriptor of the lock file which ensures there
+                    is only one instance of FileRock Client running.
+                    Child processes have to close it to avoid stale locks.
         """
         AbstractFilter.__init__(self, operationQueue, resultsQueue, maxWorker, name=self.__class__.__name__)
         self.logger = logging.getLogger('FR.%s' % self.getName())
         self.cfg=cfg
         self.enc_dir=CryptoUtils.get_encryption_dir(cfg)
         self.warebox = warebox
+        self.lockfile_fd = lockfile_fd
 
     def _start_WorkerWatchers(self):
         """
@@ -79,7 +84,8 @@ class CryptoFilter(AbstractFilter):
                                        self.freeWorker,
                                        self.cfg,
                                        self.warebox,
-                                       self.enc_dir)
+                                       self.enc_dir,
+                                       self.lockfile_fd)
             connector.start_WorkerWatcher()
             self.connectors.append(connector)
 

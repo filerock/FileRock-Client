@@ -25,9 +25,7 @@
 #
 
 """
-This is the storage_connector module.
-
-
+<Short description goes here>
 
 
 ----
@@ -46,6 +44,7 @@ import urllib2
 import contextlib
 import base64
 import binascii
+import hashlib
 
 from FileRockSharedLibraries.Communication.RequestDetails import ENCRYPTED_FILES_IV_HEADER
 
@@ -63,16 +62,22 @@ class StorageConnector(object):
         ##_fix_get_http_request()
 
     def get_percentage(self, point, total):
-        if total>0:
+        if total > 0:
             return int(round((point / total) * 100))
         else:
             return 100
 
+    def byte_to_send(self, bandwidth, max):
+        if bandwidth is not None:
+            return bandwidth.byte_to_send()
+        else:
+            return max
 
+            
     def upload_file(self,
             local_pathname, remote_pathname, remote_ip_address, bucket, token,
             auth_date, open_function, file_md5=None, file_size=None, iv=None,
-            terminationEvent=None, percentageQueue=None, logger=None):
+            terminationEvent=None, percentageQueue=None, logger=None, bandwidth=None):
         headers = {}
         headers['Host'] = '%s.%s' % (bucket, self.endpoint)
         headers['Date'] = auth_date
@@ -87,17 +92,19 @@ class StorageConnector(object):
         target = urllib.quote('/%s' % remote_pathname.encode('utf-8'))
         uploaded = 0
         percentage = self.get_percentage(uploaded, file_size)
-
+        if percentageQueue is not None:
+            percentageQueue(percentage)
         try:
             with open_function(local_pathname, 'rb') as body:
                 with contextlib.closing(httplib.HTTPSConnection(address, timeout=10)) as connection:
-                    #connection.set_debuglevel(1)
+#                    connection.set_debuglevel(1)
 #                    connection.request('PUT', target, body, headers)
                     connection.putrequest('PUT', target, True, True)
                     for k, v in headers.iteritems():
                         connection.putheader(k, v)
                     connection.endheaders()
-                    chunk = body.read(CHUNK_SIZE)
+
+                    chunk = body.read(self.byte_to_send(bandwidth, CHUNK_SIZE))
                     while len(chunk) > 0:
                         if terminationEvent is not None:
                             if terminationEvent.is_set():
@@ -110,8 +117,8 @@ class StorageConnector(object):
                             uploaded += len(chunk)
                             percentage = self.get_percentage(uploaded, file_size)
                             if (percentage % 3 == 0):
-                                percentageQueue.put(('percentage',percentage))
-                        chunk = body.read(CHUNK_SIZE)
+                                percentageQueue(percentage)
+                        chunk = body.read(self.byte_to_send(bandwidth, CHUNK_SIZE))
 
                     response = connection.getresponse()
                     result = {'success': None, 'details': {}}
@@ -141,7 +148,7 @@ class StorageConnector(object):
 
     def download_file(self, local_pathname, remote_pathname, remote_ip_address,
             bucket, token, auth_date, open_function, terminationEvent=None,
-            byte_range=None, percentageQueue=None, logger=None):
+            byte_range=None, percentageQueue=None, logger=None, bandwidth=None):
         """
         byte_range specifies byte range to download. Format must be like:
             1) xxx-yyy
@@ -165,8 +172,10 @@ class StorageConnector(object):
                 with open_function(local_pathname, 'wb') as local_file:
                     file_size = int(remote_file.info()['Content-Length'])
                     percentage = self.get_percentage(downloaded, file_size)
+                    etag = hashlib.md5();
 
-                    chunk = remote_file.read(DOWNLOAD_CHUNK_SIZE)
+                    chunk = remote_file.read(self.byte_to_send(bandwidth, DOWNLOAD_CHUNK_SIZE))
+                    
                     while len(chunk) > 0:
                         if terminationEvent is not None:
                             if terminationEvent.is_set():
@@ -175,13 +184,15 @@ class StorageConnector(object):
                                 local_file.write(chunk)
                         else:
                             local_file.write(chunk)
-
+                            
+                        etag.update(chunk)
+                        
                         if percentageQueue is not None:
                             downloaded += len(chunk)
                             percentage = self.get_percentage(downloaded, file_size)
                             if (percentage % 2 == 0):
-                                percentageQueue.put(('percentage',percentage))
-                        chunk = remote_file.read(DOWNLOAD_CHUNK_SIZE)
+                                percentageQueue(percentage)
+                        chunk = remote_file.read(self.byte_to_send(bandwidth, DOWNLOAD_CHUNK_SIZE))
 
 #                    local_file.write(remote_file.read())
                     result = {'success': True, 'details': {}}
@@ -189,6 +200,7 @@ class StorageConnector(object):
                     result['details']['reason'] = None
                     result['details']['headers'] = '%s' % remote_file.info()
                     result['details']['body'] = None
+                    result['etag'] = binascii.hexlify(etag.digest())
                     return result
 
         except TerminationException as e:

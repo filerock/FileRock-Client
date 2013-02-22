@@ -50,7 +50,7 @@ class Decrypter(object):
     Implement the encryption task by step
     """
 
-    def __init__(self, warebox=None, chunksize=None):
+    def __init__(self, warebox_path=None, chunksize=None):
         """
         Set the chunksize, if not chuncksize is passed the default value will be 64*1024
 
@@ -67,7 +67,7 @@ class Decrypter(object):
         self.chunksize=chunksize or CryptoUtils.CHUNK_SIZE
         self.padder = PKCS7Padder()
         self.completed = False
-        self.warebox = warebox
+        self.warebox_path = warebox_path
 
     def _on_new_task(self, tw):
         """
@@ -84,10 +84,10 @@ class Decrypter(object):
 
         self.infile = open(in_filename, mode='rb')
 
-        if self.warebox:
-            self.outfile = self.warebox.open(out_filename, 'w')
-        else:
-            self.outfile = open(out_filename, 'wb') #Open output file in writebinary mode
+        if self.warebox_path is not None:
+            out_filename = os.path.join(self.warebox_path, out_filename)
+        
+        self.outfile = open(out_filename, 'wb') #Open output file in writebinary mode
 
         protocol_version = self.infile.read(len(CryptoUtils.PROTOCOL_VERSION))
 

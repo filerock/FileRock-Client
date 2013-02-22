@@ -49,8 +49,6 @@ import PIL.Image as Image
 import hashlib
 import io
 
-IMAGE_PATH = os.path.normpath('./data/images/')
-IMAGES_PATH = os.path.join(IMAGE_PATH, 'robohash')
 
 class Robohash(object):
 
@@ -96,7 +94,7 @@ class Robohash(object):
         return completelist
 
 
-def get_robohash(string=None, sizex=200, sizey=200):
+def get_robohash(images_dir, string=None, sizex=200, sizey=200):
     '''
     Returns an io.BytesIO buffer containing the binary data for a PNG image
     corresponding to the robohash of @string
@@ -105,7 +103,7 @@ def get_robohash(string=None, sizex=200, sizey=200):
     if string is None: raise Exception('Sorry, you cannot ask the robohash of nothing')
     r = Robohash(string)
     r.createHashes(11)
-    client_set = '%s%s%s' % (IMAGES_PATH, os.sep, colors[r.hasharray[0] % len(colors)])
+    client_set = os.path.join(images_dir, colors[r.hasharray[0] % len(colors)])
     hashlist = r.getHashList(client_set)
     hlcopy = []
     for element in hashlist:

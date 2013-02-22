@@ -43,9 +43,13 @@ FileRock Client is licensed under GPLv3 License.
 
 import wx
 import logging
+import os
+from threading import Thread
+
 from filerockclient.ui.wxGui.dialogs.syncdialog.panel_2 import Panel2
 from filerockclient.ui.wxGui import Utils, Messages
-from threading import Thread
+from filerockclient.ui.wxGui.constants import IMAGE_PATH
+
 # begin wxGlade: dependencies
 # end wxGlade
 
@@ -54,18 +58,18 @@ from threading import Thread
 # end wxGlade
 
 
-
 class SyncDialog(wx.Dialog):
+
     def __init__(self, app, *args, **kwds):
         # begin wxGlade: SyncDialog.__init__
         kwds["style"] = wx.DEFAULT_DIALOG_STYLE|wx.RESIZE_BORDER|wx.MAXIMIZE_BOX|wx.THICK_FRAME
         wx.Dialog.__init__(self, *args, **kwds)
-        self.bitmap_1 = wx.StaticBitmap(self, -1, wx.Bitmap("./data/images/stop-64.png", wx.BITMAP_TYPE_PNG))
+        self.bitmap_1 = wx.StaticBitmap(self, -1, wx.Bitmap(os.path.join(IMAGE_PATH, "stop-64.png"), wx.BITMAP_TYPE_PNG))
         self.message_label = wx.StaticText(self, -1, "Basis Mismatch")
-        self.bitmap_button_1 = wx.BitmapButton(self, -1, wx.Bitmap("./data/images/question.png", wx.BITMAP_TYPE_PNG), style=wx.NO_BORDER)
-        self.robohash_from_bitmap = wx.StaticBitmap(self, -1, wx.Bitmap("./data/images/noconnection_robot_100x100.png", wx.BITMAP_TYPE_PNG))
-        self.bitmap_4 = wx.StaticBitmap(self, -1, wx.Bitmap("./data/images/change-to.png", wx.BITMAP_TYPE_PNG))
-        self.robohash_to_bitmap = wx.StaticBitmap(self, -1, wx.Bitmap("./data/images/noconnection_robot_100x100.png", wx.BITMAP_TYPE_PNG))
+        self.bitmap_button_1 = wx.BitmapButton(self, -1, wx.Bitmap(os.path.join(IMAGE_PATH, "question.png"), wx.BITMAP_TYPE_PNG), style=wx.NO_BORDER)
+        self.robohash_from_bitmap = wx.StaticBitmap(self, -1, wx.Bitmap(os.path.join(IMAGE_PATH, "noconnection_robot_100x100.png"), wx.BITMAP_TYPE_PNG))
+        self.bitmap_4 = wx.StaticBitmap(self, -1, wx.Bitmap(os.path.join(IMAGE_PATH, "change-to.png"), wx.BITMAP_TYPE_PNG))
+        self.robohash_to_bitmap = wx.StaticBitmap(self, -1, wx.Bitmap(os.path.join(IMAGE_PATH, "noconnection_robot_100x100.png"), wx.BITMAP_TYPE_PNG))
 
         self.__set_properties()
         self.__do_layout()
@@ -94,13 +98,14 @@ class SyncDialog(wx.Dialog):
         # begin wxGlade: SyncDialog.__set_properties
         self.SetTitle(Messages.SYNC_DIALOG_TITLE)
         _icon = wx.EmptyIcon()
-        _icon.CopyFromBitmap(wx.Bitmap("./data/images/FileRock.ico", wx.BITMAP_TYPE_ICO))
+        pathname = os.path.join(IMAGE_PATH, "FileRock.ico")
+        _icon.CopyFromBitmap(wx.Bitmap(pathname, wx.BITMAP_TYPE_ICO))
         self.SetIcon(_icon)
         self.SetSize((700, 560))
         self.bitmap_button_1.SetToolTipString(Messages.SYNC_BASIS_MISMATCH_HELP_TOOLTIP)
         self.bitmap_button_1.SetSize(self.bitmap_button_1.GetBestSize())
         # end wxGlade
-        _icon = wx.Icon("./data/images/FileRock.ico", wx.BITMAP_TYPE_ICO)
+        _icon = wx.Icon(pathname, wx.BITMAP_TYPE_ICO)
         self.SetIcon(_icon)
 
     def __do_layout(self):

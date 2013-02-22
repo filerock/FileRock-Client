@@ -42,26 +42,24 @@ FileRock Client is licensed under GPLv3 License.
 
 import os
 from tempfile import mkstemp
-import logging
-import time
 
-import os, struct, random, hashlib
+import random
 from datetime import datetime
 from Crypto.Cipher import AES
-from binascii import hexlify, unhexlify
 from hashlib import sha256, sha1
 from Crypto import Random
 from pbkdf2 import PBKDF2
-
-from filerockclient.exceptions import EncryptedDirDelException
+import time
 from filerockclient.warebox import CantWritePathnameException
+from filerockclient.util.utilities import _try_remove
 
 ENCRYPTED_FOLDER_NAME = u'encrypted/'
 PROTOCOL_VERSION = u'FileRock01'
 CHUNK_SIZE = 64*1024
-ENC_DIR=u'enc'
+ENC_DIR = u'enc'
 
-class ProtocolVersionMismatch(Exception): pass
+class ProtocolVersionMismatch(Exception):
+    pass
 
 def generate_encryption_key():
     """
@@ -161,16 +159,21 @@ def create_encrypted_dir(warebox, logger=None, ui=None):
                 warebox.make_directory(u'encrypted')
                 created = True
             except CantWritePathnameException as e:
-                if e.errno==17 and os.path.isfile(warebox.absolute_pathname(u'encrypted')): #file encrypted exists
+                if e.errno==17 \
+                and os.path.isfile(warebox.absolute_pathname(u'encrypted')): 
                     if ui:
-                        if ui.ask_for_user_input(u'rename_encrypted_file') == 'ok':
+                        ask_what = u'rename_encrypted_file'
+                        if ui.ask_for_user_input(ask_what) == 'ok':
                             continue
                         else:
                             break
                     else:
-                        renamed_on=warebox.rename(u'encrypted',u'encrypted','Renamed')
+                        renamed_on=warebox.rename(u'encrypted', 
+                                                  u'encrypted',
+                                                  'Renamed')
                         if logger:
-                            logger.debug('encrypted file moved on %s' % renamed_on)
+                            msg = u'encrypted file moved on %s'
+                            logger.debug(msg % renamed_on)
     return created
 
 
@@ -207,11 +210,13 @@ def prepare_operation(pathname_operation, temp_dir=ENC_DIR):
     if pathname_operation.verb == u'DELETE':
         return False
 
-    if pathname_operation.verb == u'UPLOAD' and pathname_operation.pathname.startswith(u'encrypted/'):
+    if pathname_operation.verb == u'UPLOAD' \
+    and pathname_operation.pathname.startswith(u'encrypted/'):
         pathname_operation.to_encrypt = True
         return True
 
-    if pathname_operation.verb == u'DOWNLOAD' and pathname_operation.pathname.startswith(u'encrypted/'):
+    if pathname_operation.verb == u'DOWNLOAD' \
+    and pathname_operation.pathname.startswith(u'encrypted/'):
         pathname_operation.to_decrypt = True
         return True
 
@@ -227,41 +232,50 @@ def prepare_operation(pathname_operation, temp_dir=ENC_DIR):
             return True
 
 def get_encryption_dir(cfg):
-    return os.path.join(cfg.get('User', 'temp_dir'), ENC_DIR)
+    return os.path.join(cfg.get('Application Paths', 'temp_dir'), ENC_DIR)
 
-def get_temp_file(pathname_operation, cfg, enc_dir=ENC_DIR):
+def set_temp_file(pathname_operation, cfg, enc_dir=None):
     """
     Creates a temporary file and adds its path to pathname_operation
     """
-    if pathname_operation.to_decrypt:
-        temp_dir=get_encryption_dir(cfg)
+    if pathname_operation.to_encrypt \
+    or pathname_operation.to_decrypt:
+        if enc_dir is not None:
+            temp_dir = enc_dir
+        else:
+            temp_dir=get_encryption_dir(cfg)
+            
         encrypted_fd, encrypted_pathname = mkstemp(dir=temp_dir)
+        os.close(encrypted_fd)
         pathname_operation.encrypted_pathname = encrypted_pathname
         pathname_operation.encrypted_fd = encrypted_fd
-        os.close(pathname_operation.encrypted_fd)
 
 def clean_env(pathname_operation, logger=None):
     """
     Cleans environment after encryption operations, removing encrypted file
     """
-    if pathname_operation.to_decrypt or pathname_operation.to_encrypt:
+    if pathname_operation.to_encrypt:
         if os.path.exists(pathname_operation.encrypted_pathname):
-            os.remove(pathname_operation.encrypted_pathname)
+            _try_remove(pathname_operation.encrypted_pathname, logger)
             if logger:
-                logger.debug(u'Encrypted file %s deleted' % pathname_operation.encrypted_pathname)
+                msg = u'Encrypted file %s deleted'
+                logger.debug(msg % pathname_operation.encrypted_pathname)
+
 
 
 def to_encrypt(pathname_operation):
     """
     Returns true if the pathname operation should be encrypted
     """
-    return pathname_operation.to_encrypt and pathname_operation.encrypted_pathname is None
+    return pathname_operation.to_encrypt \
+        and pathname_operation.encrypted_pathname is None
 
 def to_decrypt(pathname_operation):
     """
     Returns true if the pathname operation should be decrypted
     """
-    return pathname_operation.to_decrypt and pathname_operation.encrypted_pathname is None
+    return pathname_operation.to_decrypt \
+        and pathname_operation.encrypted_pathname is None
 
 
 def filter_encrypted_pathname(conflicts):
@@ -270,4 +284,5 @@ def filter_encrypted_pathname(conflicts):
 
     @param conflicts: list of pathnames
     """
-    return filter(lambda p: p.startswith(u'encrypted/') and not p.endswith('/'), conflicts)
+    return filter(lambda p: p.startswith(u'encrypted/') \
+                  and not p.endswith('/'), conflicts)

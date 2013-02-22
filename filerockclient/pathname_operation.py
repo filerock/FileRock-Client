@@ -40,16 +40,17 @@ FileRock Client is licensed under GPLv3 License.
 
 """
 
-import logging, pickle, time
+import pickle
 
 # Note: keep this class picklable
 
 
 class PathnameOperation(object):
 
-    def __init__(self, application, lock, verb, pathname, oldpath=None, etag=None, size=None, lmtime=None, conflicted=False):
+    def __init__(self, application, lock, verb, pathname, oldpath=None, 
+                 etag=None, size=None, lmtime=None, conflicted=False):
         '''
-        @param application: the main application class, it is needed to call  notify_pathname_status_change() on it
+        @param application: the main application class, it is needed to call notify_pathname_status_change() on it
         @type application: HeyDriveClient
 
         @param verb: it can be one in 'UPLOAD', 'DELETE', 'REMOTE_COPY', 'DOWNLOAD', 'DELETE_LOCAL'
@@ -63,13 +64,22 @@ class PathnameOperation(object):
 
         '''
 
-        assert verb in set({'UPLOAD', 'DELETE', 'REMOTE_COPY', 'DOWNLOAD', 'DELETE_LOCAL'})
+        assert verb in set({'UPLOAD',
+                            'DELETE',
+                            'REMOTE_COPY',
+                            'DOWNLOAD',
+                            'DELETE_LOCAL'})
         assert pathname.__class__.__name__ == "unicode"
-        assert (not verb == 'REMOTE_COPY') or (oldpath and oldpath.__class__.__name__ == "unicode")
+        
+        assert (not verb == 'REMOTE_COPY') \
+        or (oldpath and oldpath.__class__.__name__ == "unicode")
 
         self.application = application
         self.state = 'working'
-        ''' The state of this pathname, it can be only 'working', 'aborted', 'completed', 'rejected' '''
+        ''' 
+        The state of this pathname, it can be only 'working',
+        'aborted', 'completed', 'rejected'
+        '''
 
         self.to_encrypt = False
         self.to_decrypt = False
@@ -106,9 +116,14 @@ class PathnameOperation(object):
     def is_completed(self): return self.state == 'completed'
     def is_rejected(self): return self.state == 'rejected'
 
-    def register_abort_handler(self, handler): self.abort_handlers.append(handler)
-    def register_complete_handler(self, handler): self.complete_handlers.append(handler)
-    def register_reject_handler(self, handler): self.reject_handlers.append(handler)
+    def register_abort_handler(self, handler):
+        self.abort_handlers.append(handler)
+        
+    def register_complete_handler(self, handler):
+        self.complete_handlers.append(handler)
+
+    def register_reject_handler(self, handler):
+        self.reject_handlers.append(handler)
 
     def unregister_abort_handler(self, handler):
         self.abort_handlers.remove(handler)
@@ -121,18 +136,23 @@ class PathnameOperation(object):
 
     def _raise_event(self, event):
         with self.lock:
-            logger = logging.getLogger("FR."+self.__class__.__name__)
-#            logger.debug(u"I'm trying to raise event %s on operation: %s" % (event, self))
+#             logger = logging.getLogger("FR."+self.__class__.__name__)
             if self.state == 'working':
                 self.state = event + 'ed' if not event.endswith('e') else event + 'd'
-                for handler in getattr(self, '%s_handlers' % event): handler(self)
+                for handler in getattr(self, '%s_handlers' % event):
+                    handler(self)
                 return True
             else:
                 return False
 
-    def complete(self): self._raise_event('complete')
-    def abort(self): self._raise_event('abort')
-    def reject(self): self._raise_event('reject')
+    def complete(self):
+        self._raise_event('complete')
+    
+    def abort(self):
+        self._raise_event('abort')
+    
+    def reject(self):
+        self._raise_event('reject')
 
     def notify_pathname_status_change(self, newStatus, extras={}):
         self.extras.update(extras)
@@ -140,20 +160,42 @@ class PathnameOperation(object):
                                                        newStatus,
                                                        self.extras)
 
-    def __str__(self):
-        res = {'verb': self.verb, 'state': self.state}
-        res['pathname'] = self.pathname
-        res['temp_pathname'] = self.temp_pathname if hasattr(self, 'temp_pathname') else None
-        res['encrypted_pathname'] = self.encrypted_pathname if hasattr(self, 'encrypted_pathname') else None
-        res['warebox_size'] = self.warebox_size if hasattr(self, 'warebox_size') else None
-        res['storage_size'] = self.storage_size if hasattr(self, 'storage_size') else None
-        res['lmtime'] = self.lmtime if hasattr(self, 'lmtime') else None
-        res['warebox_etag'] = self.warebox_etag if hasattr(self, 'warebox_etag') else None
-        res['storage_etag'] = self.storage_etag if hasattr(self, 'storage_etag') else None
-        res['iv'] = self.iv if hasattr(self, 'iv') else None
+    def __repr__(self):
+        tokens = []
+        tokens.append(u"verb: %s" % self.verb)
+        tokens.append(u'pathname: "%s"' % self.pathname)
+
         if self.verb == 'REMOTE_COPY':
-            res['oldpath'] = self.oldpath
-        return repr(res)
+            tokens.append(u'oldpath: "%s"' % self.oldpath)
+
+        tokens.append(u"state: %s" % self.state)
+
+        v = self.warebox_etag if hasattr(self, 'warebox_etag') else None
+        tokens.append(u"warebox_etag: %s" % v)
+
+        v = self.warebox_size if hasattr(self, 'warebox_size') else None
+        tokens.append(u"warebox_size: %s" % v)
+
+        v = self.lmtime if hasattr(self, 'lmtime') else None
+        tokens.append(u"lmtime: %s" % v)
+
+        v = self.storage_size if hasattr(self, 'storage_size') else None
+        tokens.append(u"storage_size: %s" % v)
+
+        v = self.storage_etag if hasattr(self, 'storage_etag') else None
+        tokens.append(u"storage_etag: %s" % v)
+
+        v = self.temp_pathname if hasattr(self, 'temp_pathname') else None
+        tokens.append(u'temp_pathname: "%s"' % v)
+
+        v = self.encrypted_pathname if hasattr(self, 'encrypted_pathname') else None
+        tokens.append(u'encrypted_pathname: "%s"' % v)
+
+        v = self.iv if hasattr(self, 'iv') else None
+        tokens.append(u"iv: %s" % v)
+
+        result = u"PathnameOperation(%s)" % u", ".join(tokens)
+        return result
 
     def __getstate__(self):
         '''Called on pickling'''
@@ -163,7 +205,7 @@ class PathnameOperation(object):
         state['abort_handlers'] = []
         state['complete_handlers'] = []
         state['reject_handlers'] = []
-        state['application']=None
+        state['application'] = None
         # Remove nonstandard nonpicklable attributes
         to_delete = []
         for k, v in state.iteritems():
@@ -179,4 +221,4 @@ class PathnameOperation(object):
 
 
 if __name__ == '__main__':
-    print "\n This file does nothing on its own, it's just the %s module. \n" % __file__
+    pass

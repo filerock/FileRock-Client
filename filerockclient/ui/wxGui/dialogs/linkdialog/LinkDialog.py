@@ -45,7 +45,7 @@ import wx
 import os
 from filerockclient.interfaces import LinkingStatuses as LS
 from filerockclient.ui.wxGui import Messages
-from filerockclient.ui.wxGui.Utils import IMAGE_PATH
+from filerockclient.ui.wxGui.constants import IMAGE_PATH
 
 # begin wxGlade: dependencies
 # end wxGlade
@@ -148,14 +148,15 @@ class LinkDialog(wx.Dialog):
         # begin wxGlade: LinkDialog.__set_properties
         self.SetTitle(Messages.LINK_TITLE)
         _icon = wx.EmptyIcon()
-        _icon.CopyFromBitmap(wx.Bitmap("./data/images/FileRock.ico", wx.BITMAP_TYPE_ANY))
+        pathname = os.path.join(IMAGE_PATH, "FileRock.ico")
+        _icon.CopyFromBitmap(wx.Bitmap(pathname, wx.BITMAP_TYPE_ANY))
         self.SetIcon(_icon)
         self.username_ctrl.SetMinSize((200, 23))
         self.username_ctrl.SetFocus()
         self.password_ctrl.SetMinSize((200, 23))
         self.ok_button.SetDefault()
         # end wxGlade
-        _icon = wx.Icon("./data/images/FileRock.ico", wx.BITMAP_TYPE_ICO)
+        _icon = wx.Icon(pathname, wx.BITMAP_TYPE_ICO)
         self.SetIcon(_icon)
 
     def __do_layout(self):

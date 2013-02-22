@@ -55,11 +55,7 @@ CLIENT_UPDATE_INFO_URI = "/client-updates"
 TRUNK_CLIENT_VERSION = 'trunk'
 UPDATE_SERVER_TIMEOUT = 10
 
-try:
-    from filerockclient.BuildVersion import VERSION
-    CURRENT_CLIENT_VERSION = VERSION
-except ImportError:
-    CURRENT_CLIENT_VERSION = TRUNK_CLIENT_VERSION
+from filerockclient.constants import VERSION as CURRENT_CLIENT_VERSION
 
 class UpgradeType:
     MANDATORY = 'MANDATORY'
@@ -80,8 +76,6 @@ class UpdaterBase:
         self.temp_dir = os.path.join(user_dir, 'updates')
         self.update_server_cachain = update_server_ssl_cachain
         # Fetch client update info
-        if CURRENT_CLIENT_VERSION == TRUNK_CLIENT_VERSION:
-            raise UpdateRequestedFromTrunkClient()
         self._fetch_client_update_info()
 
     ######################################################################

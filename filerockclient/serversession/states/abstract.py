@@ -46,6 +46,9 @@ from filerockclient.serversession.states.register import StateRegister
 from filerockclient.serversession.commands import Command
 
 
+START_BASIS = None
+
+
 class ServerSessionState(object):
     """Abstraction for the states of ServerSession.
 
@@ -269,6 +272,120 @@ class ServerSessionState(object):
         if self._context._input_queue.empty(['operation']) \
         and self._context.transaction.size() == 0:
             self._context._ui_controller.set_global_status(GStatuses.C_ALIGNED)
+
+    def _load_candidate_basis(self):
+        """Load the candidate basis from the persistence store.
+
+        Raises FileRockException if none is found.
+
+        @return The candidate basis
+        """
+        return self._context.metadataDB.get('candidate_basis')
+
+    def _try_load_candidate_basis(self):
+        """Load the candidate basis from the persistent store.
+
+        @return The candidate basis if it exists, otherwise None
+        """
+        return self._context.metadataDB.try_get('candidate_basis')
+
+    def _save_basis_in_history(
+            self, prev_basis, next_basis, user_accepted=False, hashes_db=None):
+        """Save the given basis in the basis history, into the
+        persistent store.
+
+        @param prev_basis:
+                    The last persisted basis
+        @param next_basis:
+                    The most recent basis, i.e. the current one
+        @param user_accepted:
+                    Boolean flag telling whether the basis
+                    has been explicitly accepted by the user, during the
+                    synch phase.
+        @param hashes_db:
+                    Instance of filerockclient.databases.hashes.HashesDB.
+                    If None is passed, ServerSession's own instance will
+                    be used instead. Passing an instance is useful when
+                    this call is part of an open transaction on the
+                    database.
+        """
+        if hashes_db is None:
+            hashes_db = self._context.hashesDB
+        hashes_db.add(prev_basis, next_basis, user_accepted)
+
+    def _persist_candidate_basis(self, basis, metadata_db=None):
+        """Save the given basis as the "candidate basis" in the
+        persistent store.
+
+        The candidate basis is the one computed by the client just
+        before of committing the current transaction. It's used to
+        counter-check the result of the commit, sent from the server.
+        The candidate basis must be persisted in order to make the
+        client resistent to crashes of both itself and the server.
+
+        @param basis:
+                    The basis to be persisted as the candidate.
+        @param metadata_db:
+                    Instance of filerockclient.databases.metadata.MetadataDB.
+                    If None is passed, ServerSession's own instance will
+                    be used instead. Passing an instance is useful when
+                    this call is part of an open transaction on the
+                    database.
+        """
+        if metadata_db is None:
+            metadata_db = self._context.metadataDB
+        metadata_db.set('candidate_basis', basis)
+
+    def _clear_candidate_basis(self, metadata_db=None):
+        """Delete the current "candidate basis" from the persistent store.
+
+        @param metadata_db:
+                    Instance of filerockclient.databases.metadata.MetadataDB.
+                    If None is passed, ServerSession's own instance will
+                    be used instead. Passing an instance is useful when
+                    this call is part of an open transaction on the
+                    database.
+        """
+        if metadata_db is None:
+            metadata_db = self._context.metadataDB
+        metadata_db.delete_key('candidate_basis')
+
+    def _load_trusted_basis(self):
+        """Load the trusted basis from the persistence store.
+
+        @return The trusted basis if it exists, otherwise None
+        """
+        if self._context.metadataDB.exist_record('trusted_basis'):
+            basis = self._context.metadataDB.get('trusted_basis')
+        else:
+            basis = START_BASIS
+        with self._context._basis_lock:
+            self._context._current_basis = basis
+        return basis
+
+    def _persist_trusted_basis(self, basis, metadata_db=None):
+        """Save the given basis as the "trusted basis" in the
+        persistent store.
+
+        The trusted basis represents the "last known good situation" of
+        the user data. It is obtained by doing local computation (which
+        are trusted indeed) on a trusted basis. It must be persisted to
+        make it available on the next application startup.
+
+        @param basis:
+                    The basis to be persisted as the candidate.
+        @param metadata_db:
+                    Instance of filerockclient.databases.metadata.MetadataDB.
+                    If None is passed, ServerSession's own instance will
+                    be used instead. Passing an instance is useful when
+                    this call is part of an open transaction on the
+                    database.
+        """
+        if metadata_db is None:
+            metadata_db = self._context.metadataDB
+        metadata_db.set('trusted_basis', basis)
+        with self._context._basis_lock:
+            self._context._current_basis = basis
 
 
 if __name__ == '__main__':

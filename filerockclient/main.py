@@ -40,16 +40,21 @@ FileRock Client is licensed under GPLv3 License.
 
 """
 
-import argparse
-import sys
-import os
-from multiprocessing import freeze_support
+from filerockclient.constants import get_command_line, \
+                                     IS_DARWIN, \
+                                     IS_PYTHON_27, \
+                                     IS_64BITS
 
+assert IS_PYTHON_27 , "Python 2.7 required"  
+assert not (IS_DARWIN and IS_64BITS) , "Python 2.7 32bit required on OSX"    
+
+import os
+import sys
+import argparse
+from multiprocessing import freeze_support
 from filerockclient.application import Application
 
-
 def main():
-
     freeze_support()
     from filerockclient.util.utilities import install_excepthook_for_threads
     install_excepthook_for_threads()
@@ -110,21 +115,21 @@ def main():
     # bundle" argv[0] doesn't return the correct executed pathname. Maybe it's
     # related to our problem. As a patch, we accept the executable pathname as
     # a command line parameter. Damn OSX.
-    if args.executable is not None:
-        executable_name = args.executable
-    else:
-        executable_name = sys.executable
+    #if args.executable is not None:
+    #    executable_name = args.executable
+    #else:
+    #    executable_name = get_executable_path()
 
     main_script = 'FileRock.py'
 
     # Sets the current working directory to dirname(sys.executable)
     # (Fix for all packaged clients except darwin)
-    if hasattr(sys, 'frozen') and not sys.platform.startswith('darwin'):
-        os.chdir(os.path.dirname(os.path.realpath(sys.executable)))
+    #if hasattr(sys, 'frozen') and not sys.platform.startswith('darwin'):
+    #    os.chdir(os.path.dirname(os.path.realpath(sys.executable)))
 
     application = Application(
         args.develop, args.bugreport, args.configdir, args.startupslides,
-        args.restartcount, args.showpanel, args.interface, executable_name,
+        args.restartcount, args.showpanel, args.interface, get_command_line(),
         main_script)
 
     application.main_loop()

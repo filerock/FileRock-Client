@@ -151,9 +151,13 @@ class LoggerManager(object):
         return self.log_filename
 
     def _get_RotatingFileHandler(self, log_dir='.'):
-        """This method return a new file handler the first time it is called and then the same handler
-        the next times. This means that it is meant to be called the first time to get a new handler to be
-         added and the second time to get the same handler, for example to remove it."""
+        """
+        This method return a new file handler the first time 
+        it is called and then the same handler the next times.
+        This means that it is meant to be called the first time 
+        to get a new handler to be added and the second time 
+        to get the same handler, for example to remove it.
+        """
         if self.file_handler:
             return self.file_handler
         self.log_dir = log_dir

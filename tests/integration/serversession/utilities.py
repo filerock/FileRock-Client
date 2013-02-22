@@ -91,7 +91,7 @@ def setup_server_session(
     def cfg_return_values(*args):
         filename = get_fresh_filename(current_module, 'transaction_cache')
         values = {
-            ('Client', 'transaction_cache_db'): filename,
+            ('Application Paths', 'transaction_cache_db'): filename,
             ('System', 'storage_endpoint'): 'www.filerock.com'
         }
         try:
@@ -137,7 +137,8 @@ def setup_server_session(
         storage_cache, sync,
         fswatcher_mock, linker_mock,
         metadata, hashes_mock, internalfacade_mock,
-        uicontroller_mock, auto_start=False,
+        uicontroller_mock, get_lock_filename(current_module), 
+        auto_start=False,
         input_queue=session_queue, scheduler=scheduler_mock)
 
     components = {'real': {}, 'mock': {}}
@@ -163,6 +164,11 @@ def setup_server_session(
 def get_current_dir(current_module):
     return os.path.dirname(os.path.abspath(current_module))
 
+def get_lock_filename(current_module):
+    data_dir = os.path.join(get_current_dir(current_module), 'test_data')
+    if not os.path.exists(data_dir):
+        os.mkdir(data_dir)
+    return os.path.join(data_dir, "lockfile")
 
 def get_fresh_filename(current_module, name):
     data_dir = os.path.join(get_current_dir(current_module), 'test_data')

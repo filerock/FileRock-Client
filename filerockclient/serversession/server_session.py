@@ -55,7 +55,6 @@ from filerockclient.integritycheck.IntegrityManager import IntegrityManager
 from filerockclient.workers.filters.encryption.adapter import Adapter
 from filerockclient.exceptions import UnexpectedMessageException
 from filerockclient.exceptions import ProtocolException
-from filerockclient.exceptions import FileRockException
 from filerockclient.serversession.connection_lifekeeper import \
     ConnectionLifeKeeper
 from filerockclient.serversession.connection_handling import \
@@ -66,7 +65,6 @@ from filerockclient.serversession.commands import Command
 from filerockclient.util.match_hostname import match_hostname, CertificateError
 
 
-START_BASIS = None
 MAX_CONNECTION_ATTEMPTS = 5
 
 
@@ -102,8 +100,8 @@ class ServerSession(threading.Thread):
     def __init__(self,
             cfg, warebox, storage_cache,
             startup_synchronization, filesystem_watcher, linker,
-            metadata_db, hashes_db, internal_facade, ui_controller, auto_start,
-            input_queue, scheduler):
+            metadata_db, hashes_db, internal_facade, ui_controller,
+            lockfile_fd, auto_start, input_queue, scheduler):
         """
         @param cfg:
                     Instance of filerockclient.config.ConfigManager.
@@ -131,6 +129,10 @@ class ServerSession(threading.Thread):
         @param ui_controller:
                     Instance of filerockclient.ui.ui_controller.
                     UIController.
+        @param lockfile_fd:
+                    File descriptor of the lock file which ensures there
+                    is only one instance of FileRock Client running.
+                    Child processes have to close it to avoid stale locks.
         @param auto_start:
                     Boolean flag telling whether ServerSession should
                     connect to the server when started.
@@ -163,6 +165,7 @@ class ServerSession(threading.Thread):
         self.linker = linker
         self.warebox = warebox
         self.cfg = cfg
+        self._lockfile_fd = lockfile_fd
 
         self._started = False
         self.must_die = threading.Event()
@@ -183,16 +186,15 @@ class ServerSession(threading.Thread):
         self.session_id = None
         self.storage_ip_address = None
         self.refused_declare_count = 0
-        self._current_basis = START_BASIS
+        self._current_basis = None
         self.id = 0
 
-        self.worker_pool = WorkerPool(self.warebox, self, cfg)
         self.keepalive_timer = ConnectionLifeKeeper(
-            self._input_queue, self.input_keepalive_queue,
-            self.output_message_queue, True)
+                                self._input_queue, self.input_keepalive_queue,
+                                self.output_message_queue, True)
         self.transaction = Transaction()
         self.transaction_manager = TransactionManager(
-            self.transaction, self.storage_cache)
+                                          self.transaction, self.storage_cache)
 
         StateRegister.setup(self)
 
@@ -234,10 +236,10 @@ class ServerSession(threading.Thread):
 
         self.client_id = self.cfg.get('User', 'client_id')
         self.username = self.cfg.get('User', 'username')
-        self.priv_key = self.cfg.get('User', 'client_priv_key_file')
+        self.priv_key = self.cfg.get('Application Paths', 'client_priv_key_file')
         self.host = self.cfg.get('System', 'server_hostname')
         self.port = self.cfg.getint('System', 'server_port')
-        self.server_certificate = self.cfg.get('System', 'server_certificate')
+        self.server_certificate = self.cfg.get('Application Paths', 'server_certificate')
         self.storage_hostname = self.cfg.get('System', 'storage_endpoint')
 
         self.refused_declare_max = self.cfg.getint(
@@ -251,16 +253,24 @@ class ServerSession(threading.Thread):
         self.commit_threshold_bytes = self.cfg.getint(
             'Client', 'commit_threshold_bytes')
 
-        temp = self.cfg.get('Client', 'transaction_cache_db')
+        temp = self.cfg.get('Application Paths', 'transaction_cache_db')
         self.transaction_cache = TransactionCache(temp)
-        self.integrity_manager = IntegrityManager(self._load_trusted_basis())
+        self.integrity_manager = IntegrityManager(None)
 
         is_firt_startup = self._internal_facade.is_first_startup()
+
         self.cryptoAdapter = Adapter(self.cfg,
                                      self.warebox,
                                      self._input_queue,
+                                     self._lockfile_fd,
                                      enc_dir='enc',
                                      first_startup=is_firt_startup)
+
+        self.worker_pool = WorkerPool(self.warebox,
+                                      self,
+                                      self.cfg,
+                                      self.cryptoAdapter)
+
         self.temp_dir = self.cryptoAdapter.get_enc_dir()
         self._ui_controller.update_config_info(self.cfg)
 
@@ -269,10 +279,11 @@ class ServerSession(threading.Thread):
         self._started = True
         try:
             self.worker_pool.start_workers()
-            curr_basis = self.integrity_manager.getCurrentBasis()
-            self.logger.info(u'Current basis is: %s' % curr_basis)
             self.keepalive_timer.start()
             self.current_state = StateRegister.get('DisconnectedState')
+            curr_basis = self.current_state._load_trusted_basis()
+            self.integrity_manager.setCurrentBasis(curr_basis)
+            self.logger.info(u'Current basis is: %s' % curr_basis)
             self.current_state._on_entering()
             self._internal_facade.set_global_status(GStatuses.NC_STOPPED)
             if self.auto_start:
@@ -413,127 +424,6 @@ class ServerSession(threading.Thread):
         except AttributeError:
             pass
 
-    def _load_candidate_basis(self):
-        """
-        Load the candidate basis from the persistence store.
-        Raises FileRockException if none is found.
-
-        Note: this private method should be actually "protected" for
-        the ServerSession states, but Python doesn't have such a
-        protection level.
-
-        @return The candidate basis
-        """
-        if not self.metadataDB.exists_record('candidate_basis'):
-            raise FileRockException('Loading non existing candidate basis')
-        return self.metadataDB.get('candidate_basis')
-
-    def _try_load_candidate_basis(self):
-        """
-        Load the candidate basis from the persistent store.
-        Returns None if none is found.
-
-        Note: this private method should be actually "protected" for
-        the ServerSession states, but Python doesn't have such a
-        protection level.
-
-        @return The candidate basis
-        """
-        return self.metadataDB.try_get('candidate_basis')
-
-    def _save_basis_in_history(
-            self, prev_basis, next_basis, user_accepted=False):
-        """
-        Save the given basis in the basis history, into the
-        persistent store.
-
-        Note: this private method should be actually "protected" for
-        the ServerSession states, but Python doesn't have such a
-        protection level.
-
-        @param prev_basis:
-                    The last persisted basis
-        @param next_basis:
-                    The most recent basis, i.e. the current one
-        @param user_accepted:
-                    Boolean flag telling whether the basis
-                    has been explicitly accepted by the user, during the
-                    synch phase.
-        """
-        self.hashesDB.add(prev_basis, next_basis, user_accepted)
-
-    def _persist_candidate_basis(self, basis):
-        """
-        Save the given basis as the "candidate basis" in the
-        persistent store.
-
-        The candidate basis is the one computed by the client just
-        before of committing the current transaction. It's used to
-        counter-check the result of the commit, sent from the server.
-        The candidate basis must be persisted in order to make the
-        client resistent to crashes of both itself and the server.
-
-        Note: this private method should be actually "protected" for
-        the ServerSession states, but Python doesn't have such a
-        protection level.
-
-        @param basis:
-                    The basis to be persisted as the candidate.
-        """
-        self.metadataDB.set('candidate_basis', basis)
-
-    def _clear_candidate_basis(self):
-        """
-        Delete the current "candidate basis" from the persistent store.
-
-        Note: this private method should be actually "protected" for
-        the ServerSession states, but Python doesn't have such a
-        protection level.
-        """
-        self.metadataDB.delete_key('candidate_basis')
-
-    def _load_trusted_basis(self):
-        """
-        Load the trusted basis from the persistence store.
-        Returns None if none is found.
-
-        Note: this private method should be actually "protected" for
-        the ServerSession states, but Python doesn't have such a
-        protection level.
-
-        @return The trusted basis
-        """
-        if self.metadataDB.exists_record('trusted_basis'):
-            basis = self.metadataDB.get('trusted_basis')
-        else:
-            basis = START_BASIS
-            self.metadataDB.set('trusted_basis', basis)
-            self._persist_basis(basis)
-        with self._basis_lock:
-            self._current_basis = basis
-        return basis
-
-    def _persist_basis(self, basis):
-        """
-        Save the given basis as the "trusted basis" in the
-        persistent store.
-
-        The trusted basis represents the "last known good situation" of
-        the user data. It is obtained by doing local computation (which
-        are trusted indeed) on a trusted basis. It must be persisted to
-        make it available on the next application startup.
-
-        Note: this private method should be actually "protected" for
-        the ServerSession states, but Python doesn't have such a
-        protection level.
-
-        @param basis:
-                    The basis to be persisted as the candidate.
-        """
-        self.metadataDB.set('trusted_basis', basis)
-        with self._basis_lock:
-            self._current_basis = basis
-
     def commit(self):
         """Make the client commit the current transaction."""
         self._input_queue.put(Command('USERCOMMIT'), 'usercommand')
@@ -554,6 +444,19 @@ class ServerSession(threading.Thread):
         This method is meant to be called by WorkerPool.
         """
         self._input_queue.put(Command('WORKERFREE'), 'systemcommand')
+
+    def signal_download_integrity_error(self, operation, bad_etag):
+        """
+        Tell ServerSession that a downloaded file had an etag different
+        from the expected one.
+
+        This method is meant to be called by Workers.
+        """
+        cmd = Command('INTEGRITYERRORONDOWNLOAD')
+        cmd.operation = operation
+        cmd.bad_etag = bad_etag
+        self._input_queue.put(cmd, 'systemcommand')
+        self.transaction.cancel_waiting()
 
     def get_current_basis(self):
         """

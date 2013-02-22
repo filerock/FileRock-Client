@@ -41,7 +41,13 @@ FileRock Client is licensed under GPLv3 License.
 """
 
 from tempfile import mkstemp
-import multiprocessing, traceback, os
+import multiprocessing
+import traceback
+import os
+import signal
+import logging
+from filerockclient.interfaces import PStatuses
+
 
 from filerockclient import warebox
 from filerockclient.storage_connector import StorageConnector
@@ -49,12 +55,19 @@ from filerockclient.util.ipc_subprocess_logger import SubprocessLogger
 from filerockclient.util.utilities import stoppable_exponential_backoff_waiting
 from filerockclient.workers.filters.encryption import helpers as CryptoHelpers
 
+from threading import Thread
 
 
 DOWNLOAD_DIR = 'downloads'
 
+SUCCESS = 0
+INTERRUPTED = 1
+FAILED = 2
+DOWNLOAD_INTEGRITY_ERROR = 3
 
-class WorkerChild(multiprocessing.Process):
+
+# class WorkerChild(multiprocessing.Process):
+class WorkerChild(Thread):
     """
     Handle the upload and download of files
 
@@ -62,31 +75,38 @@ class WorkerChild(multiprocessing.Process):
     """
 
     def __init__(self,
+                 warebox,
                  inputQueue,
                  communicationQueue,
                  terminationEvent,
-                 logs_queue,
-                 cfg):
+                 percentage_callback,
+                 cfg,
+                 pool):
         """
-        @param inputQueue: multiprocess queue used to send pathname_operation to the child
-        @param communcationQueue: multiprocess queue used to send back results
-        @param terminationEvent: multiprocess event used to stop the upload/download
-        @param logs_queue: multiprocess queue used to send back log messages
-        @param cfg: instance of filerockclient.config.ConfigManager
+        @param inputQueue:
+                    multiprocess queue used to send pathname_operation
+                    to the child
+        @param communcationQueue:
+                    multiprocess queue used to send back results
+        @param terminationEvent:
+                    multiprocess event used to stop the upload/download
+        @param logs_queue:
+                    multiprocess queue used to send back log messages
+        @param cfg:
+                    instance of filerockclient.config.ConfigManager
         """
         # Note: executed before the process has started. Every attribute set here must be picklable.
-        multiprocessing.Process.__init__(self)
-        self.logger = SubprocessLogger(logs_queue)
+#         multiprocessing.Process.__init__(self)
+        super(WorkerChild, self).__init__(name=self.__class__.__name__)
+
         self.inputQueue = inputQueue
         self.communicationQueue = communicationQueue
         self.terminationEvent = terminationEvent
         self.cfg = cfg
-
-    def __close_temp_file_fd(self, file_operation):
-        if file_operation.verb == 'DOWNLOAD':
-            if os.path.exists(file_operation.temp_pathname):
-                os.close(file_operation.temp_fd)
-                self.logger.debug(u'Temp fd %s closed' % file_operation.temp_fd)
+        self.up_bandwidth = pool.up_bandwidth
+        self.down_bandwidth = pool.down_bandwidth
+        self.percentage_callback = percentage_callback
+        self.warebox = warebox
 
     def __check_download_dir(self, download_dir):
         if os.path.exists(download_dir) and os.path.isdir(download_dir):
@@ -97,7 +117,7 @@ class WorkerChild(multiprocessing.Process):
             os.makedirs(download_dir)
 
     def __get_download_dir(self):
-        temp_dir = os.path.join(self.cfg.get('User','temp_dir'), DOWNLOAD_DIR)
+        temp_dir = os.path.join(self.cfg.get('Application Paths','temp_dir'), DOWNLOAD_DIR)
         self.__check_download_dir(temp_dir)
         return temp_dir
 
@@ -105,15 +125,18 @@ class WorkerChild(multiprocessing.Process):
         if file_operation.verb == 'DOWNLOAD':
             temp_dir = self.__get_download_dir()
             temp_fd, temp_pathname = mkstemp(dir=temp_dir)
+            os.close(temp_fd)
             file_operation.temp_pathname = temp_pathname
             file_operation.temp_fd = temp_fd
+
 
     def __rm_temp_file(self, file_operation):
         if file_operation.verb == 'DOWNLOAD':
             if os.path.exists(file_operation.temp_pathname):
                 try:
                     os.remove(file_operation.temp_pathname)
-                    self.logger.debug(u'Temp file %s deleted' % file_operation.temp_pathname)
+                    self.logger.debug(u'Temp file %s deleted'
+                                      % file_operation.temp_pathname)
                 except:
                     pass
 
@@ -122,9 +145,10 @@ class WorkerChild(multiprocessing.Process):
         Executed after the process has started.
         Set here non-picklable attributes
         """
-        self.warebox = warebox.Warebox(self.cfg)
+        self.name += "_%s" % self.ident
+        self.logger = self.logger = logging.getLogger("FR.%s" % self.getName())
         self.connector = StorageConnector(self.warebox, self.cfg)
-        self.logger.debug(u"Hello, my PID is %s" % self.pid)
+#         self.logger.debug(u"Hello, my PID is %s" % self.pid)
 
     def run(self):
         """
@@ -136,35 +160,58 @@ class WorkerChild(multiprocessing.Process):
         try:
             self._more_init()
             termination = False
+
             while not termination:
                 try:
                     operation, file_operation = self.inputQueue.get()
                     self.logger.debug('==> Operation type %s, content %s' %
                                       (operation, file_operation))
+    
                     if operation == 'FileOperation':
                         self.terminationEvent.clear()
-                        self.logger.debug(u'Started to handle %s' % (file_operation))
+                        self.logger.debug(u'Started to handle %s' % file_operation)
                         self.__get_temp_file(file_operation)
-                        result, interrupted = self._handle_operation(file_operation)
-                        self.__rm_temp_file(file_operation)
-                        if result:
-                            self.logger.debug(u'Operation completed: %s. Returning.' % (file_operation))
-                            self.communicationQueue.put(('result','completed'))
-                        elif not result and interrupted:
-                            self.logger.debug(u'Failed performing operation %s. INTERRUPTED.' % (file_operation))
+                        result = self._handle_operation(file_operation)
+    
+                        if result == SUCCESS:
+                            self.logger.debug(
+                                    u'Operation completed: %s. Returning.'
+                                    % file_operation)
+                            self.communicationQueue.put(('result', 'completed'))
+    
+                        elif result == INTERRUPTED:
+                            self.logger.debug(
+                                    u'Failed performing operation %s. '
+                                    'INTERRUPTED.' % file_operation)
                             self.communicationQueue.put(('result', 'interrupted'))
-                        elif not result and not interrupted:
-                            self.logger.debug(u'Failed performing operation %s. Returning.' % (file_operation))
+    
+                        elif result == FAILED:
+                            self.logger.debug(
+                                    u'Failed performing operation %s. '
+                                    'Returning.' % file_operation)
                             self.communicationQueue.put(('result', 'failed'))
+    
+                        elif result == DOWNLOAD_INTEGRITY_ERROR:
+                            self.logger.debug(
+                                u"Detected an integrity error while "
+                                "downloading pathname %s. Expected etag %s "
+                                "but %s has been found."
+                                % (file_operation.pathname,
+                                   file_operation.storage_etag,
+                                   file_operation.bad_etag))
+                            self.communicationQueue.put(
+                                  ('download_integrity_error',
+                                    file_operation.bad_etag))
                     elif operation == 'PoisonPill':
                         termination = True
                         self.logger.debug(u"I'm going to die")
                         self.communicationQueue.put(('ShuttingDown', None))
+                        
                 except KeyboardInterrupt:
                     pass
         except Exception:
             self.communicationQueue.put(('DIED',None))
-#            self.percentuageQueue.put(None)
+            raise
 
     def _handle_operation(self, file_operation):
         """
@@ -177,24 +224,17 @@ class WorkerChild(multiprocessing.Process):
                 result = self._handle_upload_operation(file_operation)
                 return result
             elif file_operation.verb == 'DOWNLOAD':
-                result, interrupted = self._handle_download_operation(file_operation)
-                if not interrupted:
-                    if result and file_operation.to_decrypt:
-                        CryptoHelpers.decrypt(file_operation, self.warebox, self.cfg, self.logger)
-                    self.__close_temp_file_fd(file_operation)
-                    self.warebox.move(file_operation.temp_pathname,
-                                      file_operation.pathname,
-                                      file_operation.conflicted)
-                return (result, interrupted)
+                result = self._handle_download_operation(file_operation)
+                return result
             else:
                 self.logger.debug(u'Unsupported verb for operation, giving up: %s' % (file_operation))
-                return False, False
+                return FAILED
         except Exception as e:
             self.logger.debug(u'Exception caught: %s\n%s' % (e, traceback.format_exc()))
-            return False, False
+            return FAILED
         except KeyboardInterrupt:
             self.logger.debug(u'Caught a KeyboardInterrupt, this means that the application is closing. I give up.')
-            return False, True
+            return INTERRUPTED
 
     def _handle_upload_operation(self, file_operation):
         """
@@ -233,11 +273,12 @@ class WorkerChild(multiprocessing.Process):
             iv
         ]
 
-
+        percentage_callback = lambda percentage: self.percentage_callback(file_operation, PStatuses.UPLOADING, percentage)
         do_upload = lambda event: self.connector.upload_file(*args,
                                                        terminationEvent=event,
-                                                       percentageQueue=self.communicationQueue,
-                                                       logger=self.logger)
+                                                       percentageQueue=percentage_callback,
+                                                       logger=self.logger,
+                                                       bandwidth=self.up_bandwidth)
         return self._perform_network_transfer(do_upload, file_operation)
 
     def _handle_download_operation(self, file_operation):
@@ -254,7 +295,7 @@ class WorkerChild(multiprocessing.Process):
             mode = 'wb'
         else:
             pathname = file_operation.temp_pathname
-            open_function= open
+            open_function = open
             mode = 'wb'
 
         args = [
@@ -266,10 +307,17 @@ class WorkerChild(multiprocessing.Process):
             file_operation.download_info['auth_date'],
             open_function
         ]
-        do_download = lambda event: self.connector.download_file(*args,
-                                                           terminationEvent=event,
-                                                           percentageQueue=self.communicationQueue,
-                                                           logger=self.logger)
+
+        percentage_callback = lambda percentage: self.percentage_callback(file_operation, PStatuses.DOWNLOADING, percentage)
+
+        def do_download(event):
+            result = self.connector.download_file(*args,
+                                                  terminationEvent=event,
+                                                  percentageQueue=percentage_callback,
+                                                  logger=self.logger,
+                                                  bandwidth=self.down_bandwidth)
+            return result
+
         return self._perform_network_transfer(do_download, file_operation)
 
     def _perform_network_transfer(self, transfer_strategy, file_operation):
@@ -301,10 +349,14 @@ class WorkerChild(multiprocessing.Process):
             response = transfer_strategy(self.terminationEvent)
             if response['success']:
                 self.logger.debug(u'Successfully ended network transfer for: %s "%s":' % (file_operation.verb, file_operation.pathname))
-                return (True, False)
+                if file_operation.verb == 'DOWNLOAD' \
+                and response['etag'] != file_operation.storage_etag:
+                    file_operation.bad_etag = response['etag']
+                    return DOWNLOAD_INTEGRITY_ERROR
+                return SUCCESS
             else:
                 if 'termination' in response['details']:
-                    return (False, True)
+                    return INTERRUPTED
             self.logger.warning(u'HTTP %s failed for operation: %s. Retrying in %s seconds...' % (file_operation.verb, file_operation, waiting_time))
             self.logger.debug(u'Response details: %s' % (response['details']))
             waiting_time = stoppable_exponential_backoff_waiting(waiting_time, self.terminationEvent)
@@ -312,10 +364,10 @@ class WorkerChild(multiprocessing.Process):
 
         if self.terminationEvent.is_set():
             # termination required from outside
-            return (False, True)
+            return INTERRUPTED
 
         self.logger.error(u'Ok, I have tried performing %s for %d times. I am done now. Put that stuff in a FedEx box and send it via mail.' % (file_operation, max_attempts))
-        return (False, False)
+        return FAILED
 
 
 

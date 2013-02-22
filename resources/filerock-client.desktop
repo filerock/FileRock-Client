@@ -1,9 +1,9 @@
 [Desktop Entry]
-Exec=/usr/bin/filerock
+Exec=EXECUTABLE_PATH
 Name=FileRock
 StartupNotify=true
 Terminal=false
 Type=Application
 Categories=Network;
-Icon=filerock-client.png
+Icon=filerock-client
 Comment=FileRock client

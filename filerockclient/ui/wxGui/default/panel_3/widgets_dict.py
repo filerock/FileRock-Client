@@ -42,38 +42,46 @@ FileRock Client is licensed under GPLv3 License.
 
 from filerockclient.ui.wxGui.default.panel_3.widgets.SettingsWidgets import *
 
-
 WIDGETS = {
-    'User': {
-        'warebox_path': lambda parent, val, _: DirPickerCtrl(parent, -1, val)
+    u'Application Paths': {
+        u'warebox_path': lambda parent, val, _: DirPickerCtrl(parent, -1, val)
     },
-    "NOCFG": {
-        'cloud_storage': lambda parent,
+    u"NOCFG": {
+        u'cloud_storage': lambda parent,
                                 val,
                                 _: CloudComboBox(parent,
                                                  -1,
                                                  style=wx.CB_READONLY),
-        'replica_cloud': lambda parent,
+        u'replica_cloud': lambda parent,
                                 val,
                                 _: ReplicaComboBox(parent,
                                                    -1,
                                                    style=wx.CB_READONLY),
+        u'bandwidth_limit': lambda parent,
+                                  val,
+                                  panel: Bandwidth_limit(val, parent, panel)
     },
-    "User Defined Options": {
-        'osx_label_shellext': lambda parent, val, _: CheckBox(val, parent),
-        'on_tray_click': lambda parent,
+    u"User Defined Options": {
+        u'launch_on_startup': lambda parent, val, _: CheckBox(val, parent),
+        u'on_tray_click': lambda parent,
                                 val,
-                                _: ComboBox(parent,
-                                            -1,
-                                            val,
-                                            choices=TASKBARLEFTCLICKACTIONS_LABELS,
-                                            style=wx.CB_READONLY),
-        'proxy_usage': lambda parent,
+                                _: LeftClickComboBox(parent,
+                                                     val),
+        u'auto_update': lambda parent,
+                                val,
+                                _: AutoUpdateComboBox(parent,
+                                                      val),
+        u'osx_label_shellext': lambda parent, val, _: CheckBox(val, parent),
+        u'proxy_usage': lambda parent,
                               val,
                               panel: Proxy_options(val,
                                                    parent,
                                                    panel,
                                                    wx.HORIZONTAL),
+        'show_slideshow': lambda parent,
+                                     val,
+                                     _: CheckBox(val, parent)
+
 
     }
 }

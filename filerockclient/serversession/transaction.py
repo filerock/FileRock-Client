@@ -44,6 +44,27 @@ import threading, operator, logging
 
 
 class Transaction(object):
+    """
+    How Transaction deals with aborted operations.
+
+    There can be two kinds of operations into Transaction:
+
+    1) operations that were registered while in status "working" (see method
+       self.authorize_operation);
+    2) operations that were registered already aborted.
+
+    The former clear the self.can_be_committed flag, which, however, will be
+    correctly set when the operations are either completed or aborted.
+    The latter don't clear the flag, so basically they don't do any mess:
+    it is safe to wait on self.can_be_committed.
+
+    Although aborted operations are kept into Transaction, most query methods
+    skip them. Notably:
+        - self.all_operations_are_authorized
+        - self.get_operations_to_authorize
+        - self.get_completed_operations
+    """
+
 
     def __init__(self):
         self.logger = logging.getLogger("FR."+self.__class__.__name__)
@@ -135,6 +156,9 @@ class Transaction(object):
             self.logger.debug(u"There is nothing to commit.")
         else:
             self.can_be_committed.wait()
+
+    def cancel_waiting(self):
+        self.can_be_committed.set()
 
     def get_completed_operations(self):
         # Ids, which are incremental, are used to enforce the order of operations

@@ -53,9 +53,14 @@ DISABLED = False
 
 
 TASKBARLEFTCLICKACTIONS_LABELS = [
-                                  'Open FileRock Panel',
-                                  'Open FileRock Folder'
+                                  Messages.CONFIG_LEFTCLICK_PANEL,
+                                  Messages.CONFIG_LEFTCLICK_FOLDER
                                   ]
+
+UPDATECOMBOBOX_LABELS = [
+                         Messages.CONFIG_AUTOUPDATE,
+                         Messages.CONFIG_ASKFORUPDATE
+                         ]
 
 CLOUD_COMBOBOX = [
                   Messages.CONFIG_CLOUD_SEEWEB,
@@ -63,6 +68,26 @@ CLOUD_COMBOBOX = [
                   Messages.CONFIG_CLOUD_AZURE
                   ]
 
+class SpinCtrl(wx.SpinCtrl):
+    def __init__(self, *args, **kwds):
+        super(SpinCtrl, self).__init__(*args, **kwds)
+        self.default_value = 0
+    
+    def SetValue(self, value):
+        int_value = 0
+        try:
+            int_value=int(value)
+        except:
+            pass
+        return super(SpinCtrl, self).SetValue(int_value)
+    
+    def GetValue(self):
+        str_value = '0'
+        try:
+            str_value = str(super(SpinCtrl, self).GetValue())
+        except:
+            pass
+        return str_value
 
 class CtrlText(wx.TextCtrl):
 
@@ -117,8 +142,8 @@ class Proxy_options(wx.BoxSizer):
         self.checkbox = CheckBox(value, parent)
         self.config_button = Button(parent, -1, 'Proxy Settings')
         panel.Bind(wx.EVT_BUTTON, panel.show_proxy_dialog, self.config_button)
-        self.Add(self.checkbox,0,wx.ALIGN_CENTER_VERTICAL)
-        self.Add(self.config_button,1)
+        self.Add(self.checkbox, 0 , wx.ALIGN_CENTER_VERTICAL |wx.LEFT, 5)
+        self.Add(self.config_button, 1, wx.LEFT, 5)
 
     def GetValue(self):
         return self.checkbox.GetValue()
@@ -126,6 +151,36 @@ class Proxy_options(wx.BoxSizer):
     def SetValue(self, value):
         return self.checkbox.SetValue(value)
 
+class Bandwidth_limit(wx.BoxSizer):
+    def __init__(self, value, parent, panel, *args, **kwargs):
+        wx.BoxSizer.__init__(self, *args, **kwargs)
+
+        self.up = SpinCtrl(parent, -1, value["UP"], style=wx.SP_HORIZONTAL,
+                           min=0, max = 9999)
+        self.down = SpinCtrl(parent, -1, value["DOWN"], style=wx.SP_HORIZONTAL,
+                             min=0, max = 9999)
+        up_text = wx.StaticText(parent,
+                                     -1,
+                                     Messages.CONFIG_BANDWIDTH_UPLOAD_LABEL)
+        down_text = wx.StaticText(parent,
+                                       -1,
+                                       Messages.CONFIG_BANDWIDTH_DOWNLOAD_LABEL)
+        self.up.SetToolTipString(Messages.CONFIG_BANDWIDTH_LIMIT_UPLOAD_TOOLTIP)
+        self.down.SetToolTipString(Messages.CONFIG_BANDWIDTH_LIMIT_DOWNLOAD_TOOLTIP)
+        self.Add(up_text,0,wx.ALIGN_CENTER_VERTICAL|wx.RIGHT, 2)
+        self.Add(self.up,1,wx.ALIGN_CENTER_VERTICAL)
+        self.Add((10, 5), 0, 0, 0)
+        self.Add(down_text,0,wx.ALIGN_CENTER_VERTICAL|wx.RIGHT, 2)
+        self.Add(self.down,1,wx.ALIGN_CENTER_VERTICAL)
+
+    def GetValue(self):
+        values = {"UP": self.up.GetValue(),
+                  "DOWN": self.down.GetValue()}
+        return values
+
+    def SetValue(self, values):
+        self.up.SetValue(values["UP"])
+        self.down.SetValue(values["DOWN"])
 
 class CloudComboBox(BitmapComboBox):
 
@@ -174,6 +229,23 @@ class ComboBox(wx.ComboBox):
     def __init__(self, *args, **kwds):
         super(ComboBox, self).__init__(*args, **kwds)
         self.default_value = ""
+        self.str_to_value = None
+        self.value_to_str = None
+        
+    def GetValue(self, *args, **kwargs):
+        return self.str_to_value[super(ComboBox, self).GetValue(*args, **kwargs)]
+
+    def SetValue(self, value):
+        return super(ComboBox, self).SetValue(self.value_to_str[value])
+
+class LeftClickComboBox(ComboBox):
+        
+    def __init__(self, parent, val):
+        super(LeftClickComboBox, self).__init__(parent,
+                                                -1,
+                                                val,
+                                                choices=TASKBARLEFTCLICKACTIONS_LABELS,
+                                                style=wx.CB_READONLY),
         self.value_to_str = {
             TASKBARLEFTCLICKACTIONS[0]: TASKBARLEFTCLICKACTIONS_LABELS[0],
             TASKBARLEFTCLICKACTIONS[1]: TASKBARLEFTCLICKACTIONS_LABELS[1]
@@ -184,11 +256,24 @@ class ComboBox(wx.ComboBox):
             TASKBARLEFTCLICKACTIONS_LABELS[1]: TASKBARLEFTCLICKACTIONS[1]
         }
 
-    def GetValue(self, *args, **kwargs):
-        return self.str_to_value[super(ComboBox, self).GetValue(*args, **kwargs)]
 
-    def SetValue(self, value):
-        return super(ComboBox, self).SetValue(self.value_to_str[value])
+class AutoUpdateComboBox(ComboBox):
+    
+    def __init__(self, parent, val):
+        super(AutoUpdateComboBox, self).__init__(parent,
+                                             -1,
+                                             val,
+                                             choices=UPDATECOMBOBOX_LABELS,
+                                             style=wx.CB_READONLY),
+        self.value_to_str = {
+            str(ENABLED)  : UPDATECOMBOBOX_LABELS[0],
+            str(DISABLED) : UPDATECOMBOBOX_LABELS[1]
+        }
+        
+        self.str_to_value = {
+            UPDATECOMBOBOX_LABELS[0] : str(ENABLED),
+            UPDATECOMBOBOX_LABELS[1] : str(DISABLED)
+        }
 
 class Button(wx.Button):
     def __init__(self, *args, **kwargs):

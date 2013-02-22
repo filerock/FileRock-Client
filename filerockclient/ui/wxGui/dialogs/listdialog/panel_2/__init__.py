@@ -40,11 +40,14 @@ FileRock Client is licensed under GPLv3 License.
 
 """
 
+import os
 import wx
+from wx.lib.mixins.listctrl import ListCtrlAutoWidthMixin
+
 from filerockclient.interfaces import PStatuses as Pss
 from filerockclient.util.utilities import format_bytes
 from filerockclient.ui.wxGui import Messages
-from wx.lib.mixins.listctrl import ListCtrlAutoWidthMixin
+from filerockclient.ui.wxGui.constants import IMAGE_PATH
 
 
 class AutoWidthListCtrl(wx.ListCtrl, ListCtrlAutoWidthMixin):
@@ -68,11 +71,11 @@ class AutoWidthListCtrl(wx.ListCtrl, ListCtrlAutoWidthMixin):
         imglst = wx.ImageList(32,32)
 
         self.pathname_status_icon = {
-            Pss.DOWNLOADNEEDED:    imglst.Add(wx.Bitmap('./data/images/go-down.png')),
-            Pss.LOCALDELETENEEDED: imglst.Add(wx.Bitmap('./data/images/go-rm.png')),
-            Pss.LOCALRENAMENEEDED: imglst.Add(wx.Bitmap('./data/images/go-move.png')),
-            Pss.LOCALCOPYNEEDED:   imglst.Add(wx.Bitmap('./data/images/go-copy.png')),
-            Pss.UPLOADNEEDED:      imglst.Add(wx.Bitmap('./data/images/go-up.png'))
+            Pss.DOWNLOADNEEDED:    imglst.Add(wx.Bitmap(os.path.join(IMAGE_PATH, 'go-down.png'))),
+            Pss.LOCALDELETENEEDED: imglst.Add(wx.Bitmap(os.path.join(IMAGE_PATH, 'go-rm.png'))),
+            Pss.LOCALRENAMENEEDED: imglst.Add(wx.Bitmap(os.path.join(IMAGE_PATH, 'go-move.png'))),
+            Pss.LOCALCOPYNEEDED:   imglst.Add(wx.Bitmap(os.path.join(IMAGE_PATH, 'go-copy.png'))),
+            Pss.UPLOADNEEDED:      imglst.Add(wx.Bitmap(os.path.join(IMAGE_PATH, 'go-up.png')))
         }
 
         self.AssignImageList(imglst, wx.IMAGE_LIST_SMALL)

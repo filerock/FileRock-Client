@@ -73,7 +73,7 @@ class EnteringReplicationAndTransferState(ServerSessionState):
     def _handle_command_UPDATEBEFOREREPLICATION(self, command):
         """Initialize all data structures and components.
         """
-        storage_content = self._context.storage_cache.get_all()
+        storage_content = self._context.storage_cache.get_all_records()
         self._update_client_status(storage_content)
         self._update_filesystem_watcher(storage_content)
         self._context.filesystem_watcher.resume_execution()
@@ -437,7 +437,7 @@ class ReplicationAndTransferState(ServerSessionState):
         pathname = message.getParameter('pathname')
         user_quota = message.getParameter('user_quota')
         size = message.getParameter('size')
-        
+
         self._context._internal_facade.pause()
         self._context._ui_controller.notify_user('disk_quota_exceeded',
                                                  user_used_space,
@@ -500,18 +500,16 @@ class WaitingOnDeclarationFailure(ServerSessionState):
 class WaitingForUnauthorizedOperationsState(ReplicationAndTransferState):
     """We get to this state because the client has decided that a commit
     is necessary. It acts like the ReplicationAndTransferState but
-    doesn't send new requests to the server, it just listen for responses.
-    We stay here until all operations in transaction have been
-    authorized or until someone (the user, the server) forces a commit.
+    doesn't send new requests to the server, just listening for responses.
+
+    We stay here until either:
+        - all operations in transaction have been authorized or aborted;
+        - someone (the user, the server) forces a commit.
     In the latter case case we give up and all unauthorized operations
     get postponed, as usual.
 
     Note: this is a subclass of ReplicationAndTransferState.
     """
-
-    def __init__(self, session):
-        ReplicationAndTransferState.__init__(self, session)
-        self._registered_operations = []
 
     def _receive_next_message(self):
         """Differently from ReplicationAndTransferState, here new
@@ -523,32 +521,12 @@ class WaitingForUnauthorizedOperationsState(ReplicationAndTransferState):
     def _on_entering(self):
         """Prepare for waiting all the requested authorizations.
         """
-        self.logger.debug(
-            u"Waiting for all operations in trasaction to be authorized...")
+        self.logger.debug(u"Waiting for all operations in transaction"
+                          " to be authorized...")
         self.logger.info(u"Preparing to commit...")
 
-        operations = self._context.transaction_manager.get_operations_to_authorize()
-        if len(operations) == 0:
+        if self._context.transaction_manager.all_operations_are_authorized():
             self._pass_to_next_state()
-            return
-
-        _, operation = operations[0]
-        # Note: this lock is shared among all operations and EventsQueue.
-        # Acquiring it basically means to block everything about operation
-        # handling. This is correct (thread-safe) since we want to detect
-        # aborts, but the interface is not very clear and the access to the
-        # lock should be refactored somehow.
-        with operation.lock:
-            working_operations = [
-                (op_id, op) for (op_id, op) in operations
-                if not op.is_aborted()
-            ]
-            if len(working_operations) == 0:
-                self._pass_to_next_state()
-                return
-            for _, operation in working_operations:
-                operation.register_abort_handler(self.on_operation_aborted)
-                self._registered_operations.append(operation)
 
     def _handle_message_REPLICATION_DECLARE_RESPONSE(self, message):
         """Received a reply from the server for one of the declared
@@ -564,19 +542,10 @@ class WaitingForUnauthorizedOperationsState(ReplicationAndTransferState):
         else:
             id_ = message.getParameter('response_details').request_id
             operation = self._context.transaction_manager.get_operation(id_)
-            operation.unregister_reject_handler(on_operation_rejected)
             self._context.transaction.remove_operation(id_)
             if operation.verb == 'UPLOAD':
                 self._context.worker_pool.release_worker()
             self._context._input_queue.append(operation, 'operation')
-        if self._context.transaction_manager.all_operations_are_authorized():
-            self._pass_to_next_state()
-
-    def on_operation_aborted(self, operation):
-        """An aborted operation is just one operation less to wait for.
-        """
-        # Note: we still relies on the transaction to have information,
-        # although this state could make it by its own. It's cleaner.
         if self._context.transaction_manager.all_operations_are_authorized():
             self._pass_to_next_state()
 
@@ -586,13 +555,6 @@ class WaitingForUnauthorizedOperationsState(ReplicationAndTransferState):
         self.logger.debug(
             u"All operations have been authorized, let's commit.")
         self._set_next_state(StateRegister.get('CommitState'))
-
-    def _on_leaving(self):
-        """Clean any support data structure.
-        """
-        for operation in self._registered_operations:
-            operation.unregister_abort_handler(self.on_operation_aborted)
-        self._registered_operations = []
 
 
 if __name__ == '__main__':

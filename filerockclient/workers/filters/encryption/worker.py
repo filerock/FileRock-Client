@@ -40,8 +40,12 @@ FileRock Client is licensed under GPLv3 License.
 
 """
 
+import os
+import sys
+
 from filerockclient.workers.filters.abstract.worker import Worker as AbstractWorker
-from filerockclient.warebox import Warebox
+# from filerockclient.warebox import Warebox
+import traceback
 from encrypter import Encrypter
 from decrypter import Decrypter
 
@@ -52,22 +56,54 @@ class Worker(AbstractWorker):
 
     Extends the prototypes.Worker.Worker Class
     """
-    def __init__(self, tasksQueue, cmdQueue, terminationQueue, cfg):
+    def __init__(self, tasksQueue, cmdQueue, terminationQueue, warebox_path, lockfile_fd):
         """
-        @param tasksQueue: the tasks queue
-        @param cmdQueue: the queue where wait for the abort message
-        @param terminationQueue: the queue where send the termination message
+        @param tasksQueue:
+                    the tasks queue
+        @param cmdQueue:
+                    the queue where wait for the abort message
+        @param terminationQueue:
+                    the queue where send the termination message
+        @param warebox_path:
+                    The FileRock folder pathname.
+        @param lockfile_fd:
+                    File descriptor of the lock file which ensures there
+                    is only one instance of FileRock Client running.
+                    Child processes have to close it to avoid stale locks.
         """
         AbstractWorker.__init__(self, tasksQueue, cmdQueue, terminationQueue)
-        self.cfg = cfg
+        self.warebox_path = warebox_path
+        self.lockfile_fd = lockfile_fd
 
     def _more_init(self):
         """
         Called as first function in run()
         """
-        self.warebox = Warebox(self.cfg)
-        self.encrypter = Encrypter(self.warebox)
-        self.decrypter = Decrypter(self.warebox)
+        # Closing the lockfile descriptor.
+        #
+        # The multiprocessing library behaves differently on Windows and Unix:
+        #   - on Windows it spawns a Python interpreter in a brand new process,
+        #     which doesn't share any resource with the father process;
+        #   - on Unix it forks. The child process inherits by default all
+        #     file descriptors from the father, that is, open files, sockets,
+        #     etc.
+        # We want subprocesses not to inherit the lockfile descriptor in
+        # order to avoid stale locks (see module: filerockclient.application).
+        # It isn't possible to avoid Unix subprocesses to inherit descriptors,
+        # so the only safe option is to explicitly close the lockfile in the
+        # child. However, it must not be done on Windows, since multiprocessing
+        # very likely uses the very same file descriptor for different
+        # resources.
+        # The developers of multiprocessing seem to be working on the fd
+        # inheritance problem right in these days, see:
+        #     http://bugs.python.org/issue8713
+        if not sys.platform.startswith('win'):
+            os.close(self.lockfile_fd)
+
+#         self.warebox = Warebox(self.cfg)
+        self.encrypter = Encrypter(self.warebox_path)
+        self.decrypter = Decrypter(self.warebox_path)
+
 
 
     def _on_new_task(self, tw):
@@ -87,7 +123,7 @@ class Worker(AbstractWorker):
         try:
             self.op._on_new_task(tw)
         except Exception as e:
-            self.__force_termination(str(e))
+            self.__force_termination(traceback.format_exc())
 
     def _on_task_abort(self, tw):
         """
@@ -96,7 +132,7 @@ class Worker(AbstractWorker):
         try:
             self.op._on_task_abort(tw)
         except Exception as e:
-            self.__force_termination(str(e))
+            self.__force_termination(traceback.format_exc())
 
     def _on_task_complete(self, tw):
         """
@@ -105,7 +141,7 @@ class Worker(AbstractWorker):
         try:
             self.op._on_task_complete(tw)
         except Exception as e:
-            self.__force_termination(str(e))
+            self.__force_termination(traceback.format_exc())
 
     def _task_step(self, tw):
         """
@@ -114,7 +150,7 @@ class Worker(AbstractWorker):
         try:
             self.completed = self.op._task_step(tw)
         except Exception as e:
-            self.__force_termination(str(e))
+            self.__force_termination(traceback.format_exc())
 
     def _is_task_completed(self, tw):
         return self.op.completed

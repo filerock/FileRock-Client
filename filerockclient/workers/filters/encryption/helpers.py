@@ -47,7 +47,9 @@ from filerockclient.workers.filters.encryption.decrypter import Decrypter
 from filerockclient.workers.filters.encryption.encrypter import Encrypter
 from filerockclient.pathname_operation import PathnameOperation
 from filerockclient.workers.filters.encryption import utils as CryptoUtils
-
+from filerockclient.warebox import Warebox
+from Crypto.Cipher import AES
+from filerockclient.workers.filters.encryption.pkcs7_padder import PKCS7Padder
 
 def decrypt(pathname_operation, warebox, cfg, logger=None):
     """
@@ -114,6 +116,7 @@ def compute_md5_hex(pathname):
     return hexlify(get_local_file_etag(pathname))
 
 def recalc_encrypted_etag(ivs, warebox, cfg):
+    return recalc_encrypted_etag_in_mem(ivs, warebox, cfg)
     """
     Encrypt all the files into the encrypted folder and return a list of etag
 
@@ -140,6 +143,45 @@ def recalc_encrypted_etag(ivs, warebox, cfg):
         except Exception:
             clean_env(pathname_operation)
             raise
+    return encrypted_etags
+
+def recalc_encrypted_etag_in_mem(ivs, warebox, cfg):
+    """
+    Encrypt all the files into the encrypted folder and return a list of etag
+
+    @param ivs: a dictionary with pathname as key and ivs as value
+    @param warebox: an instance of warebox class
+    @param cfg: an instance of config class
+    """
+    key = unhexlify(cfg.get('User', 'encryption_key'))
+    encrypted_etags = dict()
+    chunksize = CryptoUtils.CHUNK_SIZE
+    padder = PKCS7Padder()
+    for pathname in ivs:
+        try:
+            fp = warebox.open(pathname, mode="rb")
+            md5 = hashlib.md5()
+            iv = unhexlify(ivs[pathname])
+            encryptor = AES.new(key, AES.MODE_CFB, iv, segment_size=128) #Initialize encryptor
+            md5.update(CryptoUtils.PROTOCOL_VERSION)
+            md5.update(iv)
+            completed = False
+            chunk = fp.read(chunksize)
+            while not completed:
+                next_chunk = fp.read(chunksize)
+                if len(next_chunk) > 0:
+                    md5.update(encryptor.encrypt(chunk))
+                    chunk = next_chunk
+                else:
+                    chunk_padded = padder.encode(chunk)
+                    encrypted_chunk=encryptor.encrypt(chunk_padded)
+                    md5.update(encrypted_chunk)
+                    completed = True
+            encrypted_etags[pathname] = md5.hexdigest()
+        except Exception:
+            raise
+        finally:
+            fp.close()
     return encrypted_etags
 
 def get_local_file_etag(pathname):

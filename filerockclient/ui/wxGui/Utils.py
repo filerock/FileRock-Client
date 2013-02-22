@@ -41,27 +41,21 @@ FileRock Client is licensed under GPLv3 License.
 """
 
 import wx
-import os, sys
+import os
+import sys
 import io
 
 from filerockclient.interfaces import GStatuses as GSs
 from filerockclient.ui.wxGui import Messages
 from filerockclient.ui.wxGui.robohash import get_robohash
-
-ICON_PATH = os.path.normpath('./data/icons/')
-IMAGE_PATH = os.path.normpath('./data/images/')
+from filerockclient.ui.wxGui.constants import IMAGE_PATH, ICON_PATH
 
 UNKNOWN_HASH = None
-UNKNOWN_HASH_IMAGE = os.path.join(IMAGE_PATH,
-                                  'unknown_robot_{size}x{size}.png'
-                                  )
-CONNECTION_PROBLEM_IMAGE = os.path.join(IMAGE_PATH,
-                                        'noconnection_robot_{size}x{size}.png'
-                                        )
+
 
 TASKBARLEFTCLICKACTIONS = [
-    'panel',
-    'folder'
+    u'panel',
+    u'folder'
 ]
 
 STATEMESSAGES = {
@@ -99,7 +93,7 @@ class MywxStaticText(wx.StaticText):
         @param maxchar: max length of trimmed value
         """
         self.current_value = value
-        if trimmed and len(value)>maxchar:
+        if trimmed and len(value) > maxchar:
             value = self._trim(value, maxchar)
         self.SetLabel(value)
         self.GetParent().Layout()
@@ -112,7 +106,7 @@ class MywxStaticText(wx.StaticText):
         """
         mytooltip = "Double Click to copy the value"
         if len(msg) > 0:
-            mytooltip = "%s\n%s" % (msg,mytooltip)
+            mytooltip = "%s\n%s" % (msg, mytooltip)
         return wx.StaticText.SetToolTipString(self, mytooltip)
 
     def GetValue(self):
@@ -146,20 +140,27 @@ def GetVHash_from_local(hash_str, size, logger=None):
     based on parameter h
     '''
     if hash_str == UNKNOWN_HASH:
-        return wx.Bitmap(UNKNOWN_HASH_IMAGE.format(size=size))
+        unknown_hash_image = os.path.join(IMAGE_PATH,
+                                          'unknown_robot_{size}x{size}.png')
+        return wx.Bitmap(unknown_hash_image.format(size=size))
 
     try:
-        buffer_istream = io.BytesIO(get_robohash(hash_str, size, size).getvalue())
-
+        images_dir = os.path.join(IMAGE_PATH, "robohash")
+        buffer_istream = io.BytesIO(get_robohash(images_dir, hash_str, size, size).getvalue())
         image = wx.EmptyImage(1, 1)
         image.LoadStream(buffer_istream)
-
         bitmap = image.ConvertToBitmap()
         return bitmap
+
     except Exception as exc:
         if logger:
             logger.debug("exception fetching Visual Hash: %s" % exc)
-        return wx.Bitmap(CONNECTION_PROBLEM_IMAGE.format(size=size), wx.BITMAP_TYPE_ANY)
+        connection_problem_image = os.path.join(
+                                        IMAGE_PATH,
+                                        'noconnection_robot_{size}x{size}.png')
+        return wx.Bitmap(connection_problem_image.format(size=size),
+                         wx.BITMAP_TYPE_ANY)
+
 
 def GetVHash(hash_str, size, logger=None):
     """
@@ -182,6 +183,7 @@ def setBold(staticText):
     font.SetWeight(wx.FONTWEIGHT_BOLD)
     staticText.SetFont(font)
 
+
 def _img(filepath):
     """
     Load an image file
@@ -191,6 +193,7 @@ def _img(filepath):
     """
     filename = os.path.normpath(filepath)
     return wx.Bitmap(os.path.join(IMAGE_PATH, filename))
+
 
 def _icon(filename):
     """
@@ -202,11 +205,11 @@ def _icon(filename):
     if sys.platform == 'darwin':
         icon_size = '48'
     elif sys.platform == 'linux2':
-        icon_size = '16'
+        icon_size = '32'
     elif sys.platform == 'win32':
         icon_size = '32'
     else:
         icon_size = '32'
 
-    return wx.Icon(os.path.join(ICON_PATH, icon_size, filename), wx.BITMAP_TYPE_PNG)
-
+    pathname = os.path.join(ICON_PATH, icon_size, filename)
+    return wx.Icon(pathname, wx.BITMAP_TYPE_PNG)

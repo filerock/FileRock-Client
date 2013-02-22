@@ -74,34 +74,46 @@ class CommitState(ServerSessionState):
         computed.
         """
         self.logger.debug(u"Committing the current transaction...")
+
+        # Block until all pending uploads are finished
         self.logger.debug(u"Waiting for the transaction to be finished...")
         self._context.transaction_manager.wait_until_finished()
         self.logger.debug(u"Transaction is finished!")
+
         self.logger.info(u"Committing the following pathnames:")
         operations = self._context.transaction_manager.get_completed_operations()
         for (op_id, op) in operations:
             self.logger.info(u'    %s "%s"' % (op.verb, op.pathname))
             self.logger.debug(u"    id=%s %s" % (op_id, op))
+
+        # Use the received proofs to compute the next expected basis
         self._check_transaction_integrity(operations)
         candidate_basis = self._context.integrity_manager.getCandidateBasis()
-        self._context._persist_candidate_basis(candidate_basis)
         self.logger.info("Candidate basis: %s" % candidate_basis)
-        self._update_transaction_cache(operations)
+
+        # Persist the expected state
+        metadata = self._context.metadataDB
+        transaction_cache = self._context.transaction_cache
+        with metadata.transaction(transaction_cache) as (meta, trans):
+            self._persist_candidate_basis(candidate_basis, metadata_db=meta)
+            self._update_transaction_cache(trans, operations)
+
+        # Ready to go, tell the server to start the commit!
         completed_operations_id = [op_id for (op_id, _) in operations]
         self._context.output_message_queue.put(COMMIT_START(
             "COMMIT_START", {'achieved_operations': completed_operations_id}))
         self._set_next_state(StateRegister.get('CommitStartState'))
 
-    def _update_transaction_cache(self, operations):
+    def _update_transaction_cache(self, transaction_cache, operations):
         """Persist the current transaction.
 
         This cache is useful to recover the commit in the future,
         should the commit go wrong.
         """
-        self._context.transaction_cache.clear()
+        transaction_cache.clear()
         transaction_timestamp = datetime.datetime.now()
         for op_id, operation in operations:
-            self._context.transaction_cache.insert(
+            transaction_cache.update_record(
                 op_id, operation, transaction_timestamp)
 
     def _handle_command_COMMIT(self, message):
@@ -170,6 +182,35 @@ class CommitStartState(ServerSessionState):
         self.logger.debug(u"Server basis: %s" % (server_basis))
         previous_basis = self._context.integrity_manager.getCurrentBasis()
         self.logger.debug(u"Previous basis: %s" % previous_basis)
+
+        # Check the server basis against the one we have computed
+        self._check_integrity(server_basis)
+
+        # Everything OK, persist the new trusted basis and related metadata
+        new_basis = self._context.integrity_manager.getCurrentBasis()
+        completed_ops = self._context.transaction_manager.get_completed_operations()
+        self._persist_integrity_metadata(previous_basis,
+                                         new_basis,
+                                         completed_ops)
+
+        self.logger.info(u"Updated basis: %s" % new_basis)
+        self._context.transaction_manager.clear()
+        self._context.operation_responses.clear()
+        self._context.refused_declare_count = 0
+        self.logger.debug(
+            u"Current transaction has been committed successfully.")
+        for (_, operation) in completed_ops:
+            operation.notify_pathname_status_change(PStatuses.ALIGNED)
+        self._update_user_interfaces(message)
+        self._try_set_global_status_aligned()
+        self._set_next_state(StateRegister.get('ReplicationAndTransferState'))
+
+    def _check_integrity(self, server_basis):
+        """Check the server basis against the one we have computed.
+
+        Precondition: self._context.integrity_manager contains the
+        expected basis.
+        """
         try:
             self._context.integrity_manager.checkCommitResult(server_basis)
         except WrongBasisAfterUpdatingException as e:
@@ -180,24 +221,52 @@ class CommitStartState(ServerSessionState):
                 " server basis %s doesn't match our computed basis %s"
                 % (server_basis, e.computed_basis))
             raise ProtocolException('WrongBasisAfterUpdatingException')
-        new_basis = self._context.integrity_manager.getCurrentBasis()
-        self._context._persist_basis(new_basis)
-        self._context._save_basis_in_history(previous_basis, new_basis)
-        self.logger.info(u"Updated basis: %s" % new_basis)
-        completed_ops = self._context.transaction_manager.get_completed_operations()
-        self._update_storage_cache(completed_ops)
-        for (_, op) in self._context.transaction_manager.get_completed_operations():
-            op.notify_pathname_status_change(PStatuses.ALIGNED)
-        self._context.transaction_manager.clear()
-        self._context.transaction_cache.clear()
-        self._context.operation_responses.clear()
-        self._context._clear_candidate_basis()
-        self._context.refused_declare_count = 0
-        self.logger.debug(
-            u"Current transaction has been committed successfully.")
-        self._update_user_interfaces(message)
-        self._try_set_global_status_aligned()
-        self._set_next_state(StateRegister.get('ReplicationAndTransferState'))
+
+    def _persist_integrity_metadata(
+                        self, previous_basis, new_basis, completed_operations):
+        """Transactionally persist all metadata related to integrity:
+        basis and storage_cache.
+        """
+        metadata = self._context.metadataDB
+        hashes = self._context.hashesDB
+        storage_cache = self._context.storage_cache
+        transaction_cache = self._context.transaction_cache
+
+        with metadata.transaction(hashes, storage_cache, transaction_cache) \
+                as (metadata_, hashes_, storage_cache_, transaction_cache_):
+            self._persist_trusted_basis(new_basis, metadata_db=metadata_)
+            self._clear_candidate_basis(metadata_db=metadata_)
+            self._save_basis_in_history(previous_basis, new_basis, hashes_db=hashes_)
+            self._update_storage_cache(storage_cache_, completed_operations)
+            transaction_cache_.clear()
+
+    def _update_storage_cache(self, storage_cache, operations):
+        """Update the storage cache by inserting the content of the
+        committed transaction.
+
+        This update is very important and it's done transactionally: we
+        need a consistent storage cache to correctly check integrity
+        and compute the operations to do in the sync phase.
+        """
+        operations = [op for (_, op) in operations]
+        lmtime = datetime.datetime.now()
+
+        for operation in operations:
+            if operation.verb in ['UPLOAD', 'REMOTE_COPY']:
+                pathname = operation.pathname
+                warebox_size = operation.warebox_size
+                storage_size = operation.storage_size
+                lmtime = operation.lmtime
+                warebox_etag = operation.warebox_etag
+                storage_etag = operation.storage_etag
+                storage_cache.update_record(
+                    pathname, warebox_size, storage_size, lmtime,
+                    warebox_etag, storage_etag)
+            elif operation.verb == 'DELETE':
+                storage_cache.delete_record(operation.pathname)
+            else:
+                raise Exception("Unexpected operation verb while in state "
+                    "%s: %s" % (self.__class__.__name__, operation))
 
     def _update_user_interfaces(self, message):
         """Send the user interfaces information on the successful commit.
@@ -218,35 +287,6 @@ class CommitStartState(ServerSessionState):
             'basis':
                 message.getParameter('new_basis')
         })
-
-    def _update_storage_cache(self, operations):
-        """Update the storage cache by inserting the content of the
-        committed transaction.
-
-        This update is very important and it's done transactionally: we
-        need a consistent storage cache to correctly check integrity
-        and compute the operations to do in the sync phase.
-        """
-        operations = [op for (_, op) in operations]
-        lmtime = datetime.datetime.now()
-
-        with self._context.storage_cache.transaction() as storage_cache:
-            for operation in operations:
-                if operation.verb in ['UPLOAD', 'REMOTE_COPY']:
-                    pathname = operation.pathname
-                    warebox_size = operation.warebox_size
-                    storage_size = operation.storage_size
-                    lmtime = operation.lmtime
-                    warebox_etag = operation.warebox_etag
-                    storage_etag = operation.storage_etag
-                    storage_cache.update_record(
-                        pathname, warebox_size, storage_size, lmtime,
-                        warebox_etag, storage_etag)
-                elif operation.verb == 'DELETE':
-                    storage_cache.delete_record(operation.pathname)
-                else:
-                    raise Exception("Unexpected operation verb while in state "
-                        "%s: %s" % (self.__class__.__name__, operation))
 
     def _handle_message_COMMIT_ERROR(self, message):
         """The server couldn't complete the commit for some reason.
@@ -334,33 +374,30 @@ class PendingCommitStartState(CommitStartState):
         """
         self.logger.info(u'Commit done')
         server_basis = message.getParameter('new_basis')
-        # candidate_basis = self._context._load_candidate_basis()
+        candidate_basis = self._load_candidate_basis()
+        previous_basis = self._load_trusted_basis()
         self.logger.debug(u"Server basis: %s" % server_basis)
-        # self.logger.debug(u"Candidate basis: %s" % candidate_basis)
-        # self._context.integrity_manager.setCurrentBasis(candidate_basis)
-        # try:
-        #     self._context.integrity_manager.checkCommitResult(server_basis)
-        # except WrongBasisAfterUpdatingException:
-        #     state = GStatus.C_HASHMISMATCHONCOMMIT
-        #     self._context._internal_facade.set_global_status(state)
-        #     self.logger.critical(
-        #         u"Detected an integrity problem with data on the storage:"
-        #         " server basis %s doesn't match our expected basis %s"
-        #         % (server_basis, candidate_basis))
-        #     raise ProtocolException('WrongBasisAfterUpdatingException')
-        previous_basis = self._context._load_trusted_basis()
+        self.logger.debug(u"Candidate basis: %s" % candidate_basis)
         self.logger.debug(u"Last trusted basis: %s" % previous_basis)
-        self._context._persist_basis(server_basis)
-        self._context._save_basis_in_history(previous_basis, server_basis)
+
+        # Check the server basis against the candidate basis
+        self._context.integrity_manager.setCurrentBasis(candidate_basis)
+        self._check_integrity(server_basis)
+
+        # Everything OK, persist the new trusted basis and related metadata
+        operations = self._context.transaction_cache.get_all_records()
+        operations = [(op_id, op) for (op_id, op, _) in operations]
+        self._persist_integrity_metadata(previous_basis,
+                                         server_basis,
+                                         operations)
         self._context.integrity_manager.setCurrentBasis(server_basis)
-        self._context._clear_candidate_basis()
-        self._context.transaction_cache.clear()
+
         self.logger.info(u"Pending commit successfully recovered.")
         self.logger.info(u"Updated basis: %s" % server_basis)
         self._update_user_interfaces(message)
         self._set_next_state(StateRegister.get('ReadyForServiceState'))
-        self._context._input_queue.put(Command('STARTSYNCPHASE'),
-                                       'sessioncommand')
+        self._context._input_queue.put(
+                                Command('STARTSYNCPHASE'), 'sessioncommand')
 
 
 if __name__ == '__main__':

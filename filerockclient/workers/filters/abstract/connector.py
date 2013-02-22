@@ -58,7 +58,7 @@ class Connector(object):
         """
 
         self.queue = Queue.Queue()
-
+        self.worker = None
         self.off = statuses['off']
         self.free = statuses['free']
         self.working = statuses['working']

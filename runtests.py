@@ -55,8 +55,8 @@ argv = sys.argv
 # Make the client code accessible to tests
 #sys.path.append('..')
 
-# Directory where to (recursively) look for tests other than cwd
-#argv.append('--where=.')
+# Directory where to (recursively) look for tests
+argv.append('--where=./tests/')
 
 # Let me print stuff on stdout from tests
 argv.append('--nocapture')

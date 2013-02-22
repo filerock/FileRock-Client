@@ -45,7 +45,7 @@ import os
 import threading
 import sqlite3
 
-from filerockclient.databases.sqlite_new import SQLiteDB
+from filerockclient.databases.sqlite_driver import SQLiteDB
 
 
 def test_object_creation():

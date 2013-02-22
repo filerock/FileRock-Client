@@ -74,7 +74,7 @@ class Collector(object):
                  loggerManager,
                  restart_count,
                  command_queue,
-                 executable_name,
+                 command_line_args,
                  main_script):
 
         """
@@ -84,16 +84,15 @@ class Collector(object):
             Instance of filerockclient.config.ConfigManager.
         @param loggerManager:
             Instance of filerockclient.logging_helper.LoggerManager.
-        @param restartcount:
+        @param restart_count:
             How many times the application has been
             recently restarted (usually due to errors).
         @param command_queue:
             Instance of Queue.Queue. The command queue of
             Application will be given to the bug reporter so
             that it could restart the application on errors.
-        @param executable_name:
-            Absolute system pathname of the Python
-            executable used for the current run.
+        @param command_line_args:
+            List of arguments which the client has been invoked with
         @param main_script:
             Filename of the main Python script (usually
             "FileRock.py").
@@ -106,7 +105,7 @@ class Collector(object):
         self.cfg = cfg
         self.restart_count = restart_count
         self._command_queue = command_queue
-        self.executable_name = executable_name
+        self.command_line_args = command_line_args
         self.main_script = main_script
         self.loggerManager = loggerManager
         self.senders = []
@@ -247,6 +246,7 @@ class Collector(object):
         data = {}
         self.details['application'] = data
         try:
+            data['cmdline_args'] = self.command_line_args
             data['status'] = self.app.status
         except Exception:
             data['Error_On_Collect'] = traceback.format_exc()

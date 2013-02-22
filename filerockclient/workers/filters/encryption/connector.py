@@ -49,7 +49,7 @@ class Connector(AbstractConnector):
     CryptoConnector extend the prototypes.Connector.Connector
     """
 
-    def __init__(self, index, statuses, resultsQueue, freeWorker, cfg, warebox, enc_dir):
+    def __init__(self, index, statuses, resultsQueue, freeWorker, cfg, warebox, enc_dir, lockfile_fd):
         """
         Initializes the connector adding configuration object and WorkerWatcher class
 
@@ -58,18 +58,22 @@ class Connector(AbstractConnector):
         @param resultsQueue: output queue, the complete/rejected/aborted tasks are sent back through it
         @param freeWorkers: threading.semaphore instance, counts the free workers
         @param cfg: configuration object
+        @param lockfile_fd:
+                    File descriptor of the lock file which ensures there
+                    is only one instance of FileRock Client running.
+                    Child processes have to close it to avoid stale locks.
         """
         AbstractConnector.__init__(self, index, statuses, resultsQueue, freeWorker)
         self.cfg = cfg
         self.warebox = warebox
         self.enc_dir = enc_dir
-
+        self.lockfile_fd = lockfile_fd
 
     def start_WorkerWatcher(self):
         """
         Runs the WorkerWatcher specific instance
         """
-        self.worker = self.WorkerWatcher(self.index, self.queue, self, self.cfg, self.warebox, self.enc_dir)
+        self.worker = self.WorkerWatcher(self.index, self.queue, self, self.cfg, self.warebox, self.enc_dir, self.lockfile_fd)
         self.worker.start()
 
     def _on_init(self):

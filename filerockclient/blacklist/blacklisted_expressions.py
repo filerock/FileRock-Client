@@ -49,6 +49,7 @@ BLACKLISTED_DIRS = [
 BLACKLISTED_FILES = [
 ".DS_Store",
 ".directory",
+".fuse_hidden*",
 "~$*.docx",
 "~$*.dotx",
 "~$*.potx",

@@ -200,8 +200,8 @@ class TBIcon(wx.TaskBarIcon):
         if self.showmodalinuse:
             self.Unbind(wx.EVT_TASKBAR_LEFT_UP)
             self.Unbind(wx.EVT_TASKBAR_RIGHT_DOWN)
-        self.Bind(wx.EVT_TASKBAR_LEFT_UP, self.app.OnTrayBarLeftClick)
-        self.showmodalinuse = False
+            self.Bind(wx.EVT_TASKBAR_LEFT_UP, self.app.OnTrayBarLeftClick)
+            self.showmodalinuse = False
 
     def lock(self):
         """
@@ -209,9 +209,9 @@ class TBIcon(wx.TaskBarIcon):
         """
         if not self.showmodalinuse:
             self.Unbind(wx.EVT_TASKBAR_LEFT_UP)
-        self.Bind(wx.EVT_TASKBAR_LEFT_UP, self.app.OnTBiconLocked)
-        self.Bind(wx.EVT_TASKBAR_RIGHT_DOWN, self.app.OnTBiconLocked)
-        self.showmodalinuse = True
+            self.Bind(wx.EVT_TASKBAR_LEFT_UP, self.app.OnTBiconLocked)
+            self.Bind(wx.EVT_TASKBAR_RIGHT_DOWN, self.app.OnTBiconLocked)
+            self.showmodalinuse = True
 
     def updateMenu(self, status):
         '''

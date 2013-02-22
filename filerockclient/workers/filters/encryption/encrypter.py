@@ -52,7 +52,7 @@ class Encrypter(object):
     """
 
 
-    def __init__(self, warebox=None, chunksize=None):
+    def __init__(self, warebox_path=None, chunksize=None):
         """
         Set the chunksize, if not chuncksize is passed the default value will be 64*1024
 
@@ -69,7 +69,7 @@ class Encrypter(object):
         self.chunksize=chunksize or CryptoUtils.CHUNK_SIZE
         self.padder = PKCS7Padder()
         self.completed = False
-        self.warebox = warebox
+        self.warebox_path = warebox_path
 
 
     def _on_new_task(self, tw):
@@ -82,10 +82,10 @@ class Encrypter(object):
         in_filename = tw.task.pathname #read filename from task
         out_filename = tw.task.encrypted_pathname #read output filename from taskwrapper
 
-        if self.warebox:
-            self.infile = self.warebox.open(in_filename)
-        else:
-            self.infile = open(in_filename, mode='rb')
+        if self.warebox_path is not None:
+            in_filename = os.path.join(self.warebox_path, in_filename)
+
+        self.infile = open(in_filename, mode='rb')
 
         self.outfile = open(out_filename, mode='wb') #Open output file in write binary mode
 

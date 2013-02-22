@@ -64,6 +64,14 @@ from filerockclient.util import multi_queue
 from filerockclient.databases import metadata
 
 
+def remove_lmtime_from_filelist(filelist):
+    obj = [{u'etag': entry['etag'],
+             u'key': entry['key'],
+             u'size': entry['size']}
+            for entry in filelist]
+    return obj
+
+
 class SyncStartState(ServerSessionState):
     """The sync phase has begun. Waiting for a reply of the server
     with the remote filelist.
@@ -143,8 +151,8 @@ class SyncStartState(ServerSessionState):
         self._validate_storage_content(storage_content)
 
         self.server_basis = message.getParameter('basis')
-        self.candidate_basis = self._context._try_load_candidate_basis()
-        self.client_basis = self._context._load_trusted_basis()
+        self.candidate_basis = self._try_load_candidate_basis()
+        self.client_basis = self._load_trusted_basis()
 
         fields = [
             'last_commit_client_id',
@@ -282,15 +290,15 @@ class SyncStartState(ServerSessionState):
                         u'User has refused the synchronization, shutting down')
                     return False
 
-                storage_list_hash = get_hash(self.storage_content)
+                storage_list_hash = get_hash(remove_lmtime_from_filelist(self.storage_content))
                 to_save = "%s %s" % (self.server_basis, storage_list_hash)
                 self._context.metadataDB.set(metadata.LASTACCEPTEDSTATEKEY, to_save)
-                self._context._save_basis_in_history(self.client_basis,
+                self._save_basis_in_history(self.client_basis,
                                                      self.server_basis,
                                                      True)
 
         if self._context._internal_facade.is_first_startup():
-            self._context._save_basis_in_history(self.client_basis,
+            self._save_basis_in_history(self.client_basis,
                                                  self.server_basis,
                                                  True)
 
@@ -320,11 +328,11 @@ class SyncStartState(ServerSessionState):
                     modification to replicate on the local data.
         """
 
-        declared_content = get_hash(storage_content)
+        declared_content = get_hash(remove_lmtime_from_filelist(storage_content))
         current_state = "%s %s" % (self.server_basis, declared_content)
 
         self.logger.debug('storage_content = %s', storage_content)
-        self.logger.debug('current_state = %s', current_state)
+        self.logger.debug('server_state = %s', current_state)
         self.logger.debug('accepted_state = %s', accepted_state)
         self.logger.debug('out_of_sync = %s', out_of_sync)
 
@@ -368,7 +376,7 @@ class SyncStartState(ServerSessionState):
         @param storage_content:
                 list of files declared from server
         """
-        declared_content = get_hash(storage_content)
+        declared_content = get_hash(remove_lmtime_from_filelist(storage_content))
         if accepted_state is not None:
             accepted_basis, accepted_content = accepted_state.split()
             same_basis = (accepted_basis == self.server_basis)
@@ -560,6 +568,16 @@ def sync_on_operation_authorized(state, message):
     state._context.worker_pool.send_operation(operation)
 
 
+def on_download_integrity_error(state, command):
+    operation = command.operation
+    bad_etag = command.bad_etag
+    state.logger.critical(
+            u"Detected an integrity error while downloading pathname %s. "
+            "Expected etag %s but %s has been found."
+            % (operation.pathname, operation.storage_etag, bad_etag))
+    state._set_next_state(StateRegister.get('BasisMismatchState'))
+
+
 class AbstractSyncDownloadingState(ServerSessionState):
     """Abstraction of the states that perform download operations.
 
@@ -658,6 +676,9 @@ class AbstractSyncDownloadingState(ServerSessionState):
         we have declared.
         """
         sync_on_operation_authorized(self, message)
+
+    def _handle_command_INTEGRITYERRORONDOWNLOAD(self, command):
+        on_download_integrity_error(self, command)
 
     def _next_id(self):
         """Get the next operation ID.
@@ -772,23 +793,8 @@ class SyncWaitingForCompletionState(ServerSessionState):
         assert command.name == 'GOTOONCOMPLETION'
         self._next_state = command.next_state
 
-        operations = self._context.transaction_manager.get_operations_to_authorize()
-        if len(operations) == 0:
+        if self._context.transaction_manager.all_operations_are_authorized():
             self._pass_to_next_state()
-            return
-
-        _, operation = operations[0]
-        with operation.lock:
-            working_operations = [
-                (op_id, op) for (op_id, op) in operations
-                if not op.is_aborted()
-            ]
-            if len(working_operations) == 0:
-                self._pass_to_next_state()
-                return
-            for _, operation in working_operations:
-                operation.register_abort_handler(self.on_operation_aborted)
-                self._registered_operations.append(operation)
 
     def _handle_message_SYNC_GET_RESPONSE(self, message):
         """Received a reply from the server on a download operation
@@ -798,22 +804,20 @@ class SyncWaitingForCompletionState(ServerSessionState):
         if self._context.transaction_manager.all_operations_are_authorized():
             self._pass_to_next_state()
 
-    def on_operation_aborted(self, operation):
-        """An operation has been aborted, just skip it.
-        """
-        if self._context.transaction_manager.all_operations_are_authorized():
-            self._pass_to_next_state()
-
     def _pass_to_next_state(self):
         self._context.transaction.wait_until_finished()
-        self._set_next_state(StateRegister.get(self._next_state))
+        while True:
+            try:
+                command, _ = self._context._input_queue.get(['systemcommand'],
+                                                            blocking=False)
+                handler = getattr(self, '_handle_command_%s' % command.name)
+                handler(command)
+            except multi_queue.Empty:
+                self._set_next_state(StateRegister.get(self._next_state))
+                break
 
-    def _on_leaving(self):
-        """Remove any abort handler that was registered.
-        """
-        for operation in self._registered_operations:
-            operation.unregister_abort_handler(self.on_operation_aborted)
-        self._registered_operations = []
+    def _handle_command_INTEGRITYERRORONDOWNLOAD(self, command):
+        on_download_integrity_error(self, command)
 
 
 class SyncDoneState(ServerSessionState):
@@ -827,29 +831,48 @@ class SyncDoneState(ServerSessionState):
         """Persist the new basis, the storage cache and tell the UI
         about the completion of the sync phase.
         """
-        self.logger.info(
-            u"Startup Synchronization phase has completed successfully")
-        self._context.output_message_queue.put(SYNC_DONE('SYNC_DONE'))
-        self._update_storage_cache()
-        self._context.transaction.clear()
-        # In case the server had sent a fresher basis
-        self._context._persist_basis(self._context.integrity_manager.getCurrentBasis())
+        completed_operations = self._context.transaction.get_completed_operations()
 
-        self._context.metadataDB.delete_key(metadata.LASTACCEPTEDSTATEKEY)
-        self._context._clear_candidate_basis()
+        if len(completed_operations) == self._context.transaction.size():
+            # All expected operations have been completed.
+            self.logger.info(
+                u"Startup Synchronization phase has completed successfully")
+            self._context.output_message_queue.put(SYNC_DONE('SYNC_DONE'))
 
-        self._context._internal_facade.first_startup_end()
-        self._context._ui_controller.update_session_info(
-            {'basis': self._context.integrity_manager.getCurrentBasis()})
+            self._update_storage_cache(completed_operations)
+            self._context.transaction.clear()
+            # In case the server had sent a fresher basis
+            # TODO: save into the basis history as well, if the basis has
+            # changed (it happens, for example, if the client had crashed
+            # on the last COMMIT_DONE message)
+            self._persist_trusted_basis(self._context.integrity_manager.getCurrentBasis())
 
-    def _update_storage_cache(self):
+            self._context.metadataDB.delete_key(metadata.LASTACCEPTEDSTATEKEY)
+            self._clear_candidate_basis()
+            self._context.transaction_cache.clear()
+
+            self._context._internal_facade.first_startup_end()
+            self._context._ui_controller.update_session_info(
+                {'basis': self._context.integrity_manager.getCurrentBasis()})
+        else:
+            # Some operations have been aborted. The basis can't be persisted,
+            # because it doesn't match what is on disk. We must stop here and
+            # repeat the synchronization.
+            self.logger.info(u"Startup Synchronization interrupted due to"
+                             " the abort of some operations.")
+            self._context._internal_facade.pause()
+            self._set_next_state(
+                               StateRegister.get('WaitingForTerminationState'))
+            
+        self._context.worker_pool.clean_download_dir()
+
+    def _update_storage_cache(self, operations):
         """Update the storage cache with the operation we have just done.
         """
         self.logger.debug("Starting updating the storage cache...")
         with self._context.storage_cache.transaction() as storage_cache:
 
             # Update the records of the downloaded pathnames
-            operations = self._context.transaction.get_completed_operations()
             for (_, operation) in operations:
                 pathname = operation.pathname
                 lmtime = operation.lmtime
@@ -890,6 +913,14 @@ class SyncDoneState(ServerSessionState):
             StateRegister.get('EnteringReplicationAndTransferState'))
         self._context._input_queue.put(
             Command('UPDATEBEFOREREPLICATION'), 'sessioncommand')
+
+
+class WaitingForTerminationState(ServerSessionState):
+
+    accepted_messages = ServerSessionState.accepted_messages
+
+    def _receive_next_message(self):
+        return self._context._input_queue.get(['usercommand'])
 
 
 if __name__ == '__main__':

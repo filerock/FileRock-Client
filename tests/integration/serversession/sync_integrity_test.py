@@ -69,7 +69,7 @@ def test_integrity_error_if_different_storage_but_basis_is_trusted(
     components['mock']['warebox'].get_content.return_value = []
 
     # There is nothing in the storage cache
-    assert_equal(components['real']['storage_cache'].get_all(), [])
+    assert_equal(components['real']['storage_cache'].get_all_records(), [])
 
     components['real']['metadata'].set('trusted_basis', 'TRUSTEDBASIS')
 
@@ -132,7 +132,7 @@ def test_integrity_error_if_storage_is_trusted_but_different_basis(
     components['mock']['warebox'].get_content.return_value = []
 
     # There is nothing in the storage cache
-    assert_equal(components['real']['storage_cache'].get_all(), [])
+    assert_equal(components['real']['storage_cache'].get_all_records(), [])
 
     components['real']['metadata'].set('trusted_basis', 'TRUSTEDBASIS')
 
@@ -190,7 +190,7 @@ def test_integrity_error_if_different_storage_but_basis_is_candidate(
     components['mock']['warebox'].get_content.return_value = []
 
     # There is nothing in the storage cache...
-    assert_equal(components['real']['storage_cache'].get_all(), [])
+    assert_equal(components['real']['storage_cache'].get_all_records(), [])
 
     # ... but one file pending from last commit
     operation = PathnameOperation(
@@ -199,7 +199,7 @@ def test_integrity_error_if_different_storage_but_basis_is_candidate(
                         etag=u'd41d8cd98f00b204e9800998ecf8427e',
                         size=1, lmtime=datetime.datetime.now())
     transaction_cache = components['real']['server_session'].transaction_cache
-    transaction_cache.insert(1, operation, datetime.datetime.now())
+    transaction_cache.update_record(1, operation, datetime.datetime.now())
 
     components['real']['metadata'].set('trusted_basis', 'TRUSTEDBASIS')
     components['real']['metadata'].set('candidate_basis', 'CANDIDATEBASIS')
@@ -258,7 +258,7 @@ def test_integrity_error_storage_is_candidate_but_different_basis(
     components['mock']['warebox'].get_content.return_value = []
 
     # There is nothing in the storage cache...
-    assert_equal(components['real']['storage_cache'].get_all(), [])
+    assert_equal(components['real']['storage_cache'].get_all_records(), [])
 
     # ... but one file pending from last commit
     operation = PathnameOperation(
@@ -267,7 +267,7 @@ def test_integrity_error_storage_is_candidate_but_different_basis(
                         etag=u'd41d8cd98f00b204e9800998ecf8427e',
                         size=1, lmtime=datetime.datetime.now())
     transaction_cache = components['real']['server_session'].transaction_cache
-    transaction_cache.insert(1, operation, datetime.datetime.now())
+    transaction_cache.update_record(1, operation, datetime.datetime.now())
 
     components['real']['metadata'].set('trusted_basis', 'TRUSTEDBASIS')
     components['real']['metadata'].set('candidate_basis', 'CANDIDATEBASIS')
@@ -317,7 +317,6 @@ def test_integrity_error_storage_is_candidate_but_different_basis(
 @patch('filerockclient.serversession.connection_lifekeeper.ConnectionLifeKeeper')
 @patch('filerockclient.workers.worker_pool.WorkerPool')
 @patch('filerockclient.workers.filters.encryption.adapter.Adapter')
-# @unittest.skip("Work in progress")
 def test_integrity_error_if_storage_is_different_but_basis_is_accepted(
                         adapter_mock, workerpool_mock, connection_lifekeeper,
                         disconnectedstate_cls_mock, downloadstate_cls_mock):
@@ -334,7 +333,7 @@ def test_integrity_error_if_storage_is_different_but_basis_is_accepted(
     components['mock']['warebox'].get_content.return_value = []
 
     # There is nothing in the storage cache
-    assert_equal(components['real']['storage_cache'].get_all(), [])
+    assert_equal(components['real']['storage_cache'].get_all_records(), [])
 
     components['real']['metadata'].set('trusted_basis', 'TRUSTEDBASIS')
 
@@ -437,7 +436,7 @@ def test_integrity_error_if_storage_is_accepted_but_basis_is_different(
     components['mock']['warebox'].get_content.return_value = []
 
     # There is nothing in the storage cache
-    assert_equal(components['real']['storage_cache'].get_all(), [])
+    assert_equal(components['real']['storage_cache'].get_all_records(), [])
 
     components['real']['metadata'].set('trusted_basis', 'TRUSTEDBASIS')
 

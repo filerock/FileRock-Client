@@ -46,63 +46,59 @@ import os
 
 
 
-# Autostart handling is defined according to FreeDesktop Standard
-# http://standards.freedesktop.org/autostart-spec/autostart-spec-latest.html
-
-# Desktop entry location
-DESKTOP_ENTRY_FILENAME = 'filerock-client.desktop'
-DESKTOP_ENTRY_DIR = 'data'
-# XDG_CONFIG_HOME environment variable
-XDG_CONFIG_HOME_ENV = 'XDG_CONFIG_HOME'
-# Fallback value if XDG_CONFIG_HOME env var is not set
-XDG_CONFIG_HOME_FALLBACK = os.path.expanduser('~/.config')
-# Unity panel GSettings schema
-UNITY_PANEL_SCHEMA = 'com.canonical.Unity.Panel'
-# Unity panel whitelist key
-UNITY_PANEL_SYSTRAY_WHITELIST = 'systray-whitelist'
-
-
 class PlatformSettingsLinux(PlatformSpecificSettingsBase):
 
 
+    # Autostart handling is defined according to FreeDesktop Standard
+    # http://standards.freedesktop.org/autostart-spec/autostart-spec-latest.html
+
+    # Desktop entry location
+    DESKTOP_ENTRY_FILENAME = u'filerock-client.desktop'
+    DESKTOP_ENTRY_DIR = u'data'
+    # XDG_CONFIG_HOME environment variable
+    XDG_CONFIG_HOME_ENV = u'XDG_CONFIG_HOME'
+    # Fallback value if XDG_CONFIG_HOME env var is not set
+    XDG_CONFIG_HOME_FALLBACK = os.path.expanduser('~/.config')
+    # Unity panel GSettings schema
+    UNITY_PANEL_SCHEMA = u'com.canonical.Unity.Panel'
+    # Unity panel whitelist key
+    UNITY_PANEL_SYSTRAY_WHITELIST = u'systray-whitelist'
+
+    # List of entries to be written into desktop file
+    DESKTOP_FILE_ENTRIES = [
+        u"[Desktop Entry]",
+        u"Exec=%(executable_path)s",
+        u"Name=FileRock",
+        u"StartupNotify=true",
+        u"Terminal=false",
+        u"Type=Application",
+        u"Categories=Network;",
+        u"Icon=filerock-client",
+        u"Comment=FileRock client",
+        u"Hidden=%(disabled)s"
+    ]
+
+   
+
     def set_autostart(self, enable):
-
-        if enable: self._enable_autostart()
-        else: self._disable_autostart()
-
-    def _enable_autostart(self):
-        """ Sets Linux autostart entry """
+        """ Sets/Unsets Linux autostart entry """
         xdg_autostart_dir = os.path.join(
-            os.getenv(XDG_CONFIG_HOME_ENV, XDG_CONFIG_HOME_FALLBACK),
+            os.getenv(self.XDG_CONFIG_HOME_ENV, self.XDG_CONFIG_HOME_FALLBACK),
             'autostart')
 
         if not os.path.exists(xdg_autostart_dir):
             try: os.makedirs(xdg_autostart_dir)
             except Exception as e:
-                self.logger.warning("Could not create dir %s: %s" % (xdg_autostart_dir, e))
+                self.logger.warning(u"Could not create dir %s: %s" % (xdg_autostart_dir, e))
+                return
 
-        desktop_entry_pathname = os.path.abspath(os.path.join(DESKTOP_ENTRY_DIR, DESKTOP_ENTRY_FILENAME))
-        symlink_pathname = os.path.join(xdg_autostart_dir, DESKTOP_ENTRY_FILENAME)
+        
+        desktop_entry_pathname = os.path.join(xdg_autostart_dir, self.DESKTOP_ENTRY_FILENAME)
 
-        if os.path.exists(symlink_pathname):
-            try: os.unlink(symlink_pathname)
-            except Exception as e:
-                self.logger.warning("Could not remove previous symlink at %s" % symlink_pathname)
-
-        try: os.symlink(desktop_entry_pathname, symlink_pathname)
+        try:
+            self._write_desktop_entry_file(desktop_entry_pathname, enable)
         except Exception as e:
-            self.logger.warning("Could not create symlink %s to %s : %s" % (symlink_pathname, desktop_entry_pathname, e))
-
-    def _disable_autostart(self):
-        """ Unsets Linux autostart entry """
-
-        xdg_autostart_dir = os.getenv(XDG_CONFIG_HOME_ENV, XDG_CONFIG_HOME_FALLBACK)
-        symlink_pathname = os.path.join(xdg_autostart_dir, DESKTOP_ENTRY_FILENAME)
-
-        if os.path.exists(symlink_pathname):
-            try: os.unlink(symlink_pathname)
-            except Exception as e:
-                self.logger.warning("Could not remove autostart entry %s: %s" % (symlink_pathname, e))
+            self.logger.warning("Could not update desktop entry file: %s" % e)
 
 
     def is_systray_icon_whitelisted(self):
@@ -122,25 +118,25 @@ class PlatformSettingsLinux(PlatformSpecificSettingsBase):
         # Check if UNITY_PANEL_SCHEMA is whitin GSettings schema
         # (not doing so may cause a crash when calling Gio.Settings.new() )
         try:
-            assert UNITY_PANEL_SCHEMA in Gio.Settings.list_schemas()
+            assert self.UNITY_PANEL_SCHEMA in Gio.Settings.list_schemas()
         except AssertionError:
-            self.logger.warning('%s schema is not listed between valid schemas, skipping whitelist procedure...' % UNITY_PANEL_SCHEMA)
+            self.logger.warning(u'%s schema is not listed between valid schemas, skipping whitelist procedure...' % self.UNITY_PANEL_SCHEMA)
             return True
 
         # Create GSettings instance
-        gsettings = Gio.Settings.new(UNITY_PANEL_SCHEMA)
+        gsettings = Gio.Settings.new(self.UNITY_PANEL_SCHEMA)
 
         # Check if UNITY_PANEL_SYSTRAY_WHITELIST key is within current schema keys
         # (not doing so may cause a crash when calling get/set value methods)
         # Note: if whitelist contains "all" keyword, then any application is allowed
         # in the systray
         try:
-            assert UNITY_PANEL_SYSTRAY_WHITELIST in gsettings.list_keys()
+            assert self.UNITY_PANEL_SYSTRAY_WHITELIST in gsettings.list_keys()
         except AssertionError:
-            self.logger.warning('%s key not found in %s, skipping whitelist procedure...' % (UNITY_PANEL_SYSTRAY_WHITELIST, UNITY_PANEL_SCHEMA))
+            self.logger.warning(u'%s key not found in %s, skipping whitelist procedure...' % (self.UNITY_PANEL_SYSTRAY_WHITELIST, self.UNITY_PANEL_SCHEMA))
             return True
 
-        whitelisted_applications = gsettings.get_value(UNITY_PANEL_SYSTRAY_WHITELIST).dup_strv()[0]
+        whitelisted_applications = gsettings.get_value(self.UNITY_PANEL_SYSTRAY_WHITELIST).dup_strv()[0]
 
         return 'FileRock' in whitelisted_applications or \
                 'all' in whitelisted_applications
@@ -158,19 +154,31 @@ class PlatformSettingsLinux(PlatformSpecificSettingsBase):
             return True
 
         # Create GSettings instance
-        gsettings = Gio.Settings.new(UNITY_PANEL_SCHEMA)
+        gsettings = Gio.Settings.new(self.UNITY_PANEL_SCHEMA)
 
         # TODO: check if key is writable
 
         # Get systray whitelisted applications (as a list)
         # see also http://developer.gnome.org/glib/stable/glib-GVariant.html
-        whitelisted_applications = gsettings.get_value(UNITY_PANEL_SYSTRAY_WHITELIST).dup_strv()[0]
+        whitelisted_applications = gsettings.get_value(self.UNITY_PANEL_SYSTRAY_WHITELIST).dup_strv()[0]
         whitelisted_applications.append('FileRock')
-        gsettings.set_value(UNITY_PANEL_SYSTRAY_WHITELIST, GLib.Variant.new_strv(whitelisted_applications))
+        gsettings.set_value(self.UNITY_PANEL_SYSTRAY_WHITELIST, GLib.Variant.new_strv(whitelisted_applications))
         gsettings.sync()
 
+    def _write_desktop_entry_file(self, desktop_entry_pathname, enabled):
+        """
+        Writes desktop entry file content, with the help of a SafeConfigParser
+        object (which is capable of writing ini-style files)
+        """
+        config = "\n".join(self.DESKTOP_FILE_ENTRIES) % {
+                                'executable_path': self._get_command_string(),
+                                'disabled': str(not enabled).lower()
+                            }
+        with open(desktop_entry_pathname,'w') as desktop_file_fp:
+            desktop_file_fp.write(config)
 
 
 
+        
 
 

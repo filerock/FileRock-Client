@@ -44,16 +44,18 @@ import os
 import logging
 import threading
 import multiprocessing
+import Queue
+import traceback
 
 from tempfile import mkstemp
 from threading import Thread
 from datetime import datetime
 
 from filerockclient.util.ipc_log_receiver import LogsReceiver
-from filerockclient.workers.worker_child import WorkerChild
+from filerockclient.workers.worker_child import WorkerChild, DOWNLOAD_DIR
 from filerockclient.interfaces import PStatuses
 from filerockclient.workers.filters.encryption import utils as CryptoUtils
-
+from filerockclient.util.utilities import _try_remove
 
 class OperationRejection(Exception):
 
@@ -68,7 +70,9 @@ class Worker(Thread):
     def __init__(self,
                  warebox,
                  operation_queue,
+                 server_session,
                  cfg,
+                 cryptoAdapter,
                  worker_pool):
         """
         @param warebox:
@@ -83,6 +87,7 @@ class Worker(Thread):
         Thread.__init__(self, name=self.__class__.__name__)
         self.cfg = cfg
         self.operation_queue = operation_queue
+        self._server_session = server_session
         self.warebox = warebox
         self.child = None
 
@@ -90,6 +95,7 @@ class Worker(Thread):
         self.communicationQueue = None
         self.child_logger = None
         self.child_logs_queue = None
+        self.cryptoAdapter = cryptoAdapter
 
         self._worker_pool = worker_pool
         self.must_die = threading.Event()
@@ -121,6 +127,7 @@ class Worker(Thread):
         """
         try:
             file_operation = self.operation_queue.get()
+            self.warebox._check_blacklisted_dir()
             if file_operation == 'POISON_PILL':
                 self.__on_poison_pill()
             elif file_operation.is_aborted():
@@ -150,36 +157,16 @@ class Worker(Thread):
             self.logger.warning(u"I should not handle a '%s' operation! I'm rejecting it", file_operation.verb)
             file_operation.reject()
 
-    def __get_temp_file(self, file_operation):
-        if file_operation.verb == 'DOWNLOAD':
-            temp_dir = self.cfg.get('User', 'temp_dir')
-            temp_fd, temp_pathname = mkstemp(dir=temp_dir)
-            file_operation.temp_pathname = temp_pathname
-            file_operation.temp_fd = temp_fd
-
-    def __clean_temp_file(self, file_operation):
-        if file_operation.verb == 'DOWNLOAD':
-            if os.path.exists(file_operation.temp_pathname):
-                try:
-                    os.close(file_operation.temp_fd)
-                    os.remove(file_operation.temp_pathname)
-                    self.logger.debug(u'Temp file %s deleted' % file_operation.temp_pathname)
-                except:
-                    pass
-
     def __send_percentage(self, file_operation, status, percentage):
         now = datetime.now()
         delta = now - self.last_send
-        if (delta.seconds + delta.microseconds/1000000.) > 0.5:
+        if ((delta.seconds + delta.microseconds/1000000.) > 0.5) or (percentage == 100):
             file_operation.notify_pathname_status_change(status, {'percentage': percentage})
             self.last_send = now
 
     def __on_operation_complete(self, file_operation):
         self.logger.debug(u"Operation has been completed successfully: %s", file_operation)
-        # TODO: this "if" here is ugly
-        if file_operation.verb == 'DOWNLOAD' and file_operation.to_decrypt:
-            file_operation.warebox_etag = self.warebox.compute_md5_hex(file_operation.pathname)
-            file_operation.warebox_size = self.warebox.get_size(file_operation.pathname)
+
         if file_operation.verb == 'UPLOAD':
             self.logger.info(u'Synchronized pathname: %s "%s", which will be persisted after a commit' % (file_operation.verb, file_operation.pathname))
             file_operation.notify_pathname_status_change(PStatuses.UPLOADED, {'percentage': 100})
@@ -196,60 +183,78 @@ class Worker(Thread):
            a conflicting operation, then EventQueue waits until this operation either aborts or completes.
            This preserves the ordering of execution for the conflicting operations - that is, the EventQueue doesn't emit
            the conflicting operation while this one is still working.'''
-
-        with file_operation.lock:
-            if not file_operation.is_aborted():
-                self.logger.debug(u"Starting child process to handle file operation: %s", file_operation)
-                try:
-                    self._spawn_child(file_operation)
-                    self.input_queue.put(('FileOperation',file_operation))
-                except Exception as e:
-                    self.logger.error(u"Could not spawn a child process: %r" % e)
-                    raise OperationRejection(file_operation)
-            else:
-                self.logger.debug(u"Got an already aborted operation, giving up: %s", file_operation)
-                return
-
-        if file_operation.verb == 'UPLOAD':
-            status = PStatuses.UPLOADING
-        else:
-            status = PStatuses.DOWNLOADING
-
-        self.__send_percentage(file_operation, status, 0)
-        termination = False
-        max_retry = 3
-        while not termination:
-            message, content = self.communicationQueue.get()
-#            self.logger.debug('Worker send back %s with content %s' % (message, content))
-            if message == 'result':
-                CryptoUtils.clean_env(file_operation, self.logger)
-                if content == 'completed':
-                    self.__send_percentage(file_operation, status, 100)
-                    self.__on_operation_complete(file_operation)
-                    termination = True
-                elif content == 'interrupted':
-                    self.logger.debug(u"Child has been terminated by Software Operation: %s", file_operation)
-                    file_operation.abort()
-                    termination = True
-                elif content == 'failed':
-                    self.logger.error(u"Child has been terminated, Assuming failure for operation: %s", file_operation)
-                    max_retry -= 1
-                    if max_retry == 0:
+        try:
+            with file_operation.lock:
+                if not file_operation.is_aborted():
+                    self.logger.debug(u"Starting child process to handle file operation: %s", file_operation)
+                    try:
+                        self._spawn_child(file_operation)
+                        self.input_queue.put(('FileOperation',file_operation))
+                    except Exception as e:
+                        self.logger.error(u"Could not spawn a child process: %r" % e)
                         raise OperationRejection(file_operation)
-                    self.input_queue.put(('FileOperation',file_operation))
-            elif message == 'percentage':
-                self.__send_percentage(file_operation, status, content)
-            elif message == 'log':
-                level, msg = content
-                self.child_logger[level](msg)
-            elif message == 'ShuttingDown':
-                self.logger.debug("Get a shutting down message from process")
-                termination = True
-            elif message == 'DIED':
-                file_operation.reject()
-                self.child=None
-                termination = True
-        self.logger.debug('Quit from _handle_network_transfer_operation method')
+                else:
+                    self.logger.debug(u"Got an already aborted operation, giving up: %s", file_operation)
+                    return
+
+            if file_operation.verb == 'UPLOAD':
+                status = PStatuses.UPLOADING
+            else:
+                status = PStatuses.DOWNLOADING
+
+            self.__send_percentage(file_operation, status, 0)
+            termination = False
+            max_retry = 3
+            while not termination:
+                message, content = self.communicationQueue.get()
+                self.logger.debug(u'Worker send back %s with content %s' % (message, content))
+                if message == 'result':
+                    CryptoUtils.clean_env(file_operation, self.logger)
+                    if content == 'completed':
+                        if file_operation.to_decrypt:
+                            self.cryptoAdapter.put(file_operation)
+                            termination = True
+                            continue
+                        elif file_operation.verb == "DOWNLOAD":
+    #                         self.__close_temp_file_fd(file_operation)
+                            self.warebox.move(file_operation.temp_pathname,
+                                              file_operation.pathname,
+                                              file_operation.conflicted)
+                        self.__send_percentage(file_operation, status, 100)
+                        self.__on_operation_complete(file_operation)
+                        termination = True
+                    elif content == 'interrupted':
+                        self.logger.debug(u"Child has been terminated by Software Operation: %s", file_operation)
+                        file_operation.abort()
+                        termination = True
+                    elif content == 'failed':
+                        self.logger.error(u"Child has been terminated, Assuming failure for operation: %s", file_operation)
+                        max_retry -= 1
+                        if max_retry == 0:
+                            raise OperationRejection(file_operation)
+                        self.input_queue.put(('FileOperation', file_operation))
+                elif message == 'percentage':
+                    self.__send_percentage(file_operation, status, content)
+                elif message == 'log':
+                    level, msg = content
+                    self.child_logger[level](msg)
+                elif message == 'ShuttingDown':
+                    self.logger.debug(u"Get a shutting down message from process")
+                    termination = True
+                elif message == 'DIED':
+                    file_operation.reject()
+                    self.child = None
+                    termination = True
+                elif message == 'download_integrity_error':
+                    self._server_session.signal_download_integrity_error(
+                                                  file_operation, bad_etag=content)
+                    termination = True
+            self.logger.debug(u'Quit from _handle_network_transfer_operation method')
+        finally:
+            if not file_operation.to_decrypt:
+                if file_operation.temp_pathname is not None \
+                and os.path.exists(file_operation.temp_pathname):
+                    _try_remove(file_operation.temp_pathname, self.logger)
 
 
     def _handle_upload_file_operation(self, operation):
@@ -276,18 +281,18 @@ class Worker(Thread):
                     "successfully: %s", operation)
             else:
                 self.warebox.make_directories_to(operation.pathname)
-                CryptoUtils.get_temp_file(operation, self.cfg)
+                CryptoUtils.set_temp_file(operation, self.cfg)
                 self._handle_network_transfer_operation(operation)
 
         except Exception as e:
             self.logger.error(u"Error while downloading: %r." % e +
                 " Rejecting the operation: %s" % operation)
+            self.logger.error(u"Stacktrace: %r" % traceback.format_exc())
             operation.reject()
 
     def _handle_delete_local_file_operation(self, file_operation):
         # Currently DELETE_LOCAL operations aren't handled by Workers
         raise Exception('Unexpected verb for operation: %s' % file_operation)
-
 
     def __start_child_logger(self):
         self.__stop_child_logger()
@@ -296,7 +301,7 @@ class Worker(Thread):
         self.child_logger = LogsReceiver(self.getName(), self.child_logs_queue)
         self.child_logger.start()
         if self.child_logger == None:
-            logger = logging.getLogger('FR.WorkerChild of %s' % self.getName())
+            logger = logging.getLogger(u'FR.WorkerChild of %s' % self.getName())
             self.child_logger = {
                     'info': logger.info,
                     'debug': logger.debug,
@@ -312,7 +317,7 @@ class Worker(Thread):
             self.child_logs_queue.put(('log',('debug','Die please!')))
             self.child_logger.join()
             self.child_logger = None
-            
+
         if self.child_logs_queue is not None:
             self.child_logs_queue.close()
             self.child_logs_queue.join_thread()
@@ -322,13 +327,17 @@ class Worker(Thread):
 
     def __create_multiprocessing_queues(self):
         self.__destroy_multiprocessing_queues()
-        self.input_queue = multiprocessing.Queue()
-        self.communicationQueue = multiprocessing.Queue()
+        self.input_queue = Queue.Queue()
+        self.communicationQueue = Queue.Queue()
+#         self.input_queue = multiprocessing.Queue()
+#         self.communicationQueue = multiprocessing.Queue()
 
     def __destroy_multiprocessing_queue(self, queue):
         if queue is not None:
-            queue.close()
-            queue.join_thread()
+            while not queue.empty():
+                queue.get_nowait()
+#             queue.close()
+#             queue.join_thread()
             queue = None
 
     def __destroy_multiprocessing_queues(self):
@@ -337,17 +346,21 @@ class Worker(Thread):
 
     def _spawn_child(self, file_operation):
         if self.child is None or not self.child.is_alive():
-            self.terminationEvent = multiprocessing.Event()
+#             self.terminationEvent = multiprocessing.Event()
+            self.terminationEvent = threading.Event()
             self.__create_multiprocessing_queues()
             self.__start_child_logger()
             try:
                 self.logger.debug(u"Allocating child process to handle file operation: %s", file_operation)
-                self.child = WorkerChild(self.input_queue,
+                self.child = WorkerChild(self.warebox,
+                                         self.input_queue,
                                          self.communicationQueue,
                                          self.terminationEvent,
-#                                         self.communicationQueue,
-                                         self.child_logs_queue,
-                                         self.cfg)
+                                         self.__send_percentage,
+#                                         self.child_logs_queue,
+                                         self.cfg,
+                                         self._worker_pool)
+
                 self.child.start()
                 self.logger.debug(u"Child process Started to handle file operation: %s", file_operation)
             except Exception:
@@ -363,8 +376,8 @@ class Worker(Thread):
             try:
                 if self.terminationEvent is not None:
                     self.terminationEvent.set()
-                else:
-                    self.child.terminate()
+#                 else:
+#                     self.child.terminate()
             except:
                 pass
 
@@ -396,6 +409,7 @@ class Worker(Thread):
 
     def _termination_requested(self):
         return self.must_die.wait(0.01)
+
 
 if __name__ == '__main__':
     print "\n This file does nothing on its own, it's just the %s module. \n" % __file__

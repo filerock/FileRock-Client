@@ -283,7 +283,7 @@ class StartupSynchronization(object):
 ##        for pathname in self.content_to_delete:
 ##            self.events_queue.add(('DELETE', pathname))
 ##        for pathname in self.content_to_upload:
-##            if self.storage_cache.exists_record(pathname):
+##            if self.storage_cache.exist_record(pathname):
 ##                self.events_queue.add(('UPDATE', pathname))
 ##            else:
 ##                self.events_queue.add(('CREATE', pathname))
@@ -292,7 +292,7 @@ class StartupSynchronization(object):
         """
         @return the storage cache content.
         """
-        content_ = self.storage_cache.get_all()
+        content_ = self.storage_cache.get_all_records()
         content = set()
         for (pathname, _, _, _, warebox_etag, storage_etag) in content_:
             content.add(pathname)
@@ -304,7 +304,7 @@ class StartupSynchronization(object):
         """
         @return the warebox content.
         """
-        storage_cache_ = self.storage_cache.get_all()
+        storage_cache_ = self.storage_cache.get_all_records()
         storage_cache = dict()
         for (pathname, _, _, lmtime, warebox_etag, _) in storage_cache_:
             storage_cache[pathname] = (lmtime, warebox_etag)

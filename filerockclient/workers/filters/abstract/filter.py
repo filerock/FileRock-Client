@@ -111,7 +111,9 @@ class Filter(threading.Thread):
         for connector in self.connectors:
             connector.terminate()
         for connector in self.connectors:
-            if connector.worker.isAlive() and connector.worker is not threading.current_thread():
+            if connector.worker is not None \
+            and connector.worker.isAlive() \
+            and connector.worker is not threading.current_thread():
                 self.logger.debug(u"Joining thread %s" % connector.worker.name)
                 connector.worker.join()
                 self.logger.debug(u"Thread %s joined" % connector.worker.name)
@@ -126,7 +128,7 @@ class Filter(threading.Thread):
         self.force_termination=True
         self.operations.put(None) #Needed for pass the task = self.operations.get() in case of no tasks presence
         self.__on_terminate()
-        self.join() if self.isAlive() and self is not threading.current_thread() else None
+#         self.join() if self.isAlive() and self is not threading.current_thread() else None
         self.logger.debug(u"%s terminated." % self.getName())
 
     ###############

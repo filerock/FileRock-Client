@@ -70,7 +70,6 @@ class Worker(multiprocessing.Process):
         """
         self._more_init()
         tw = self.tasks.get() #If someone has start the process for do a task no timeout is needed
-
         while tw and tw.task:
             self.task_poison_pill = False
             try:

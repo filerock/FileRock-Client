@@ -95,8 +95,8 @@ class ClientFacade(object):
     def apply_config(self, cfg):
         self._core.cfg.from_dict(cfg)
         self._core.cfg.write_to_file()
-        if 'warebox_path' in cfg['User']:
-            self._core._change_warebox_path(cfg['User']['warebox_path'])
+        if 'warebox_path' in cfg['Application Paths']:
+            self._core._change_warebox_path(cfg['Application Paths']['warebox_path'])
         if 'osx_label_shellext' in cfg['User Defined Options'] \
         and cfg['User Defined Options']['osx_label_shellext'] == 'False':
             self._core._metadata_db.set('osx_label_shellext', 'disabled')

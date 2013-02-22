@@ -39,3 +39,5 @@ Copyright (C) 2012 - Heyware s.r.l.
 FileRock Client is licensed under GPLv3 License.
 
 """
+
+APPLICATION_NAME = u'filerock-client'

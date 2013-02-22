@@ -49,7 +49,9 @@ import Queue
 import signal
 import threading
 import datetime
+import traceback
 from ConfigParser import NoOptionError
+import portalocker
 
 from filerockclient.core import Core
 from filerockclient.logging_helper import LoggerManager
@@ -64,7 +66,9 @@ from filerockclient.exceptions import MandatoryUpdateDeniedException
 from filerockclient import config
 from filerockclient.util import https_downloader
 from filerockclient.updater.UpdaterBase import PlatformUpdater
-from filerockclient.util.utilities import increase_exponentially
+from filerockclient.util.utilities import increase_exponentially, \
+                                          open_folder_in_system_shell
+
 
 MIN_RESET_INTERVAL = datetime.timedelta(seconds=10)
 MAX_NUMBER_OF_RESTART = 4
@@ -100,7 +104,7 @@ class Application(object):
     """
 
     def __init__(self, develop, bugreport, configdir, startupslides,
-                 restartcount, showpanel, interface, executable_name,
+                 restartcount, showpanel, interface, cmdline_args,
                  main_script):
         """
         @param develop:
@@ -130,9 +134,9 @@ class Application(object):
                     'n': no interface (actually a do-nothing interface)
                     Note that 'g' implies the console user interface if
                     the application is run in develop mode.
-        @param executable_name:
-                    Absolute system pathname of the Python
-                    executable used for the current run.
+        @param cmdline_args:
+                    List of command line arguments to start client.
+                    First parameter is always an executable
         @param main_script:
                     Filename of the main Python script (usually
                     "FileRock.py").
@@ -144,11 +148,12 @@ class Application(object):
         self.restartcount = restartcount
         self.showpanel = showpanel
         self.interface = interface
-        self.executable_name = executable_name
+        self.cmdline_args = cmdline_args
         self.main_script = main_script
         self._ui_cache = {}
         self.auto_start = True
         self.restart_after_minute = 0
+        self._lockfile = None
 
     def main_loop(self):
         """
@@ -164,11 +169,21 @@ class Application(object):
         logging_helper = LoggerManager()
         logger = self._get_logger(logging_helper)
         self.logger = logger
+
+        cfg = ConfigManager(self.configdir)
+        cfg.load()
+
+        self._lockfile = self._check_unique_instance_running(cfg, logger)
+        if not self._lockfile:
+            self._open_warebox_folder(cfg)
+            return
+
         self._save_process_pid()
         running = True
         skip_ui_creation = False
         command_queue = Queue.Queue()
         file_handler = None
+        oldhook = None
         last_reset_time = datetime.datetime.now() - datetime.timedelta(days=1)
 
         if self.restartcount > 0:
@@ -181,11 +196,15 @@ class Application(object):
 
         def sigterm_handler(sig, sframe):
             command_queue.put('TERMINATE')
+
+        def sigabrt_handler(sig, sframe):
+            command_queue.put('HARD_RESET')
+
         signal.signal(signal.SIGTERM, sigterm_handler)
+        signal.signal(signal.SIGABRT, sigabrt_handler)
 
         while running:
 
-            cfg = ConfigManager(self.configdir)
             cfg.load()
 
             self._reload_connection_proxy_settings(cfg, logger)
@@ -195,10 +214,14 @@ class Application(object):
                                                         file_handler,
                                                         cfg.get_config_dir())
 
+            logger.debug("Current configuration:\n%s" % cfg)
+
             core = Core(cfg,
                         self.startupslides,
                         self.showpanel,
                         command_queue,
+                        self.cmdline_args,
+                        self._lockfile.fileno(),
                         self.auto_start,
                         self.restart_after_minute)
 
@@ -206,6 +229,9 @@ class Application(object):
             # should not be shown
             self.startupslides = False
             self.showpanel = False
+
+            logger.debug("Command line arguments: %r"
+                         % self.cmdline_args)
 
             bug_reporter, oldhook = self._setup_bug_reporting(
                 core, cfg, logging_helper, command_queue)
@@ -317,7 +343,7 @@ class Application(object):
                 try:
                     updater = PlatformUpdater(
                                     cfg.get_config_dir(),
-                                    cfg.get('System', 'webserver_ca_chain'))
+                                    cfg.get('Application Paths', 'webserver_ca_chain'))
                     updater.execute_update()
                 except UpdateProcedureException as e:
                     logger.error(u"Update procedure error: %s" % e)
@@ -329,8 +355,33 @@ class Application(object):
                 running = self._full_reset(core, logger, last_reset_time)
                 last_reset_time = datetime.datetime.now()
 
-        sys.excepthook = oldhook
+        if oldhook:
+            sys.excepthook = oldhook
         logger.info(u"Shut down. Goodbye.")
+
+    def _check_unique_instance_running(self, cfg, logger):
+        """Check whether this is the only instance of FileRock running.
+
+        If so, returns a file object held open with an exclusive lock,
+        which ensures that no other instances will run concurrently.
+        If not, returns False.
+        """
+        config_dir = cfg.get_config_dir()
+        lockfile_path = os.path.join(config_dir, 'lockfile')
+        lockfile = open(lockfile_path, 'w')
+        try:
+            portalocker.lock(lockfile, portalocker.LOCK_EX | portalocker.LOCK_NB)
+        except portalocker.LockException:
+            logger.info(u"Can't start the application since there is"
+                        " another instance running.")
+            return False
+        return lockfile
+
+    def _open_warebox_folder(self, cfg):
+        """Open the warebox in the system shell.
+        """
+        warebox_path = cfg.get('Application Paths', 'warebox_path')
+        open_folder_in_system_shell(warebox_path)
 
     def _save_process_pid(self):
         """
@@ -339,10 +390,9 @@ class Application(object):
         if sys.platform.startswith('linux2'):
             import setproctitle
             title = setproctitle.getproctitle()
-            self.logger.info("Current PID is %s" % os.getpid())
-            self.logger.info("Current proc title is %s" % setproctitle.getproctitle())
             setproctitle.setproctitle("%s -PID_%s" % (title, os.getpid()))
-            self.logger.info("Current proc title is %s" % setproctitle.getproctitle())
+            new_title = setproctitle.getproctitle()
+            self.logger.info("Current proc title is %s" % new_title)
 
     def _pause_client(self, schedule_a_start=False):
         """
@@ -468,14 +518,14 @@ class Application(object):
                                             logging_helper,
                                             self.restartcount,
                                             command_queue,
-                                            self.executable_name,
+                                            self.cmdline_args,
                                             self.main_script)
             collector.add_sender(HTTPSSender.HTTPSSender(
                 'www.filerock.com', '443', 'client_report'))
         else:
             collector = DevelopCollector.DevelopCollector(
                 core._internal_facade, cfg, logging_helper,
-                self.restartcount, command_queue, self.executable_name,
+                self.restartcount, command_queue, self.cmdline_args,
                 self.main_script)
             collector.add_sender(LoggerSender())
         oldhook = sys.excepthook
@@ -582,6 +632,15 @@ class Application(object):
 
         elif self.interface == u'g':
 
+            # Initialize the wxGui.constants module before of loading any
+            # other GUI code, since such code makes a lot of static
+            # accesses to it at loading time.
+            from filerockclient.ui.wxGui import constants as wxGuiConstants
+            images_dir = cfg.get('Application Paths', 'images_dir')
+            icons_dir = cfg.get('Application Paths', 'icons_dir')
+            locale_dir = cfg.get('Application Paths', 'locale_dir')
+            wxGuiConstants.init(images_dir, icons_dir, locale_dir)
+
             from filerockclient.ui.wxGui import gui
 
             if not skip_creation:
@@ -593,11 +652,15 @@ class Application(object):
             core.register_ui(self._ui_cache['gui'])
 
             from filerockclient.ui import shellextension
-            if shellextension.ui_class is not None:
-                if not skip_creation:
-                    ui_cls = shellextension.ui_class
-                    self._ui_cache['shellext'] = core.setup_ui(ui_cls)
-                core.register_ui(self._ui_cache['shellext'])
+            try:
+                if shellextension.ui_class is not None:
+                    if not skip_creation:
+                        ui_cls = shellextension.ui_class
+                        self._ui_cache['shellext'] = core.setup_ui(ui_cls)
+                    core.register_ui(self._ui_cache['shellext'])
+            except Exception:
+                logger.warning(u"Error while initializing the shell extension,"
+                               " it will be skipped for this run.")
 
             # TODO: move this into the shellextension package - we want to be
             # as little platform-aware as possible here!
@@ -608,6 +671,7 @@ class Application(object):
                     from filerockclient.ui.shellextension.osx.label_based_ui import OSXLabelBasedUI
                     self._ui_cache['osx_label_based_shellext'] = core.setup_ui(OSXLabelBasedUI)
                     core.register_ui(self._ui_cache['osx_label_based_shellext'])
+
             if self.develop:
                 from filerockclient.ui.console import SimpleConsoleUI
                 if not skip_creation:
@@ -664,6 +728,8 @@ class Application(object):
             logger.critical(
                 "Error while terminating the application: %r. Can't recover "
                 "from this, trying to hard reset..." % e)
+            logger.debug(
+                u"Last error stacktrace:\n%r" % traceback.format_exc())
             self._hard_reset(logger)
 
     def _full_reset(self, core, logger, last_reset_time):
@@ -703,55 +769,50 @@ class Application(object):
         logger.info(u'\n\n-----------\n' +
             'Restarting FileRock, please wait...\n-----------\n')
 
-        def clean_cmdline(parameter):
+        # On Unix any open file descriptor is retained after calling
+        # os.exec*. This would prevent the client from restarting
+        # (self-deadlock), so we explicitly close the lockfile
+        # handle just before to reset.
+        self._lockfile.close()
+
+        cmdline_args = self.cmdline_args[:]
+
+        def clean_cmdline_arg(parameter):
             """Strips the given parameter name from sys.argv"""
-            args = filter(lambda x: x.startswith(parameter), sys.argv)
-            if args != []:
-                sys.argv.remove(args[0])
-
-        # The Python interpreter seems to strip sys.argv[0], i.e. the
-        # executable file name (see sys.executable), thus making the
-        # executed script the first parameter. However the executable name
-        # is present if the application has been packaged by py2exe.
-        # Damn Python.
-        if sys.argv[0].endswith(self.main_script):
-
-            # The first argument of sys.argv (which seems to be the
-            # FileRock.py script itself also when sys.frozen is set) and
-            # executable path are replaced with OS X FileRock frozen binary
-            # located at /path/to/.app/Contents/MacOS/FileRock
-
-            # TODO: move this to the main and just pass the correct
-            # executable_name parameter to Application, we want to be as
-            # little platform-aware as possible here!
-            if sys.platform == 'darwin' and hasattr(sys, 'frozen'):
-                path_to_binary = os.path.join(
-                            os.path.dirname(os.path.dirname(sys.argv[0])),
-                            'MacOS/FileRock')
-                sys.argv[0] = path_to_binary
-                sys.executable = path_to_binary
-            else:
-                sys.argv.insert(0, self.executable_name)
+            filtered_args = filter(lambda x: x.startswith(parameter), cmdline_args)
+            for arg in filtered_args:
+                cmdline_args.remove(arg)
 
         # Increment the restart counter
-        clean_cmdline('--restart-count')
-        count = '--restart-count=%s' % (self.restartcount + 1)
-        sys.argv += [count]
+        clean_cmdline_arg('--restart-count')
+        cmdline_args.append('--restart-count=%s' % (self.restartcount + 1))
 
         # Force not to show the presentation slides at startup
-        clean_cmdline('--no-startup-slides')
-        sys.argv += ['--no-startup-slides']
-
-        # Windows needs quoting marks on command line parameters that
-        # contain spaces. However this makes fail other platforms
-        # (Unix, OSX). Damn Windows.
-        if sys.platform == 'win32':
-            sys.argv = map(lambda x: '"%s"' % x, sys.argv)
+        clean_cmdline_arg('--no-startup-slides')
+        cmdline_args.append('--no-startup-slides')
 
         logger.debug('Command HARD_RESET executed. Restarting process...'
                      ' (executable: %s, args: %s)'
-                     % (sys.executable, sys.argv))
-        os.execvp(sys.executable, tuple(sys.argv))
+                     % (cmdline_args[0], cmdline_args))
+
+        def escape_cmdline_args(args):
+            """Perform any escaping needed by the OS shell.
+
+            Windows requires the command line arguments to be double-
+            quoted. Linux and OSX require to be NOT double-quoted.
+            """
+            if sys.platform.startswith('win'):
+                escaped_args = [u'"%s"' % arg for arg in args]
+            else:
+                escaped_args = args
+            return escaped_args
+
+        cmdline_args = escape_cmdline_args(cmdline_args)
+
+        
+        # TODO: we should flush every open file descriptor before execv*
+        # (see http://docs.python.org/2/library/os.html#os.execvpe)
+        os.execvp(cmdline_args[0], tuple(cmdline_args))
 
 
 if __name__ == '__main__':

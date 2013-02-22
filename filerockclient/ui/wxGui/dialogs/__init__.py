@@ -39,16 +39,3 @@ Copyright (C) 2012 - Heyware s.r.l.
 FileRock Client is licensed under GPLv3 License.
 
 """
-#!/usr/bin/env python
-
-
-
-"""
-Module Docstring
-Docstrings: http://www.python.org/dev/peps/pep-0257/
-"""
-
-__author__ = 'Maurizio Pizzonia (pizzonia@dia.uniroma3.it)'
-__copyright__ = 'Copyright (c) 2012 Heyware srl'
-__license__ = ''
-__vcs_id__ = '$Id$'

@@ -69,7 +69,7 @@ class Linker(object):
         self._ui_controller = ui_controller
         self.host = cfg.get('System', 'linking_hostname')
         self.port = cfg.getint('System', 'linking_port')
-        self.certificate = cfg.get('System', 'linking_certificate')
+        self.certificate = cfg.get('Application Paths', 'linking_certificate')
         self.cfg = cfg
         self.protocol_version = 1
         self.client_id = None
@@ -222,7 +222,7 @@ class Linker(object):
 
     def _check_linking(self):
         try:
-            p = self.cfg.get(u'User', u'client_priv_key_file')
+            p = self.cfg.get(u'Application Paths', u'client_priv_key_file')
         except ConfigParser.NoSectionError:
             return False
 
@@ -356,7 +356,7 @@ class Linker(object):
         #TODO: check the presence of encryption dir in config
         self.cfg.set('User', 'encryption_key', hexlify(enc_key))
 
-        priv_key_file = self.cfg.get('User', 'client_priv_key_file')
+        priv_key_file = self.cfg.get('Application Paths', 'client_priv_key_file')
 
         #Write private Key
         self.logger.debug(u'Writing private key to %s' % priv_key_file)

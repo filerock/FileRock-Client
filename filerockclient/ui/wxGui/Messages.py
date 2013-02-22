@@ -41,14 +41,20 @@ FileRock Client is licensed under GPLv3 License.
 """
 
 import gettext
-#gettext.bindtextdomain('FileRock', './data/locale')
-#gettext.textdomain('FileRock')
-_ = gettext.gettext
 
-langen = gettext.translation("FileRock", "./data/locale",languages=[#"it",
-                                                                    "en"])
-langen.install()
-#_ = langen.gettext
+from filerockclient import APPLICATION_NAME
+from filerockclient.ui.wxGui.constants import LOCALE_PATH
+
+# Configure i18n
+locale_dir = LOCALE_PATH.strip()
+if locale_dir == '':
+    # "None" means that gettext will find translations by herself, in
+    # some standard location.
+    locale_dir = None
+
+gettext.install(domain=APPLICATION_NAME, localedir=locale_dir)
+
+
 #### SYSTRAY MESSAGES #####
 
 
@@ -180,6 +186,7 @@ PANEL2_STATE_COLUMN_NAME = _(u'State')
 #PANEL2_ACTIVEOPERATION = _(u"\
 #%(activeOperation)s / %(totalOperation)s in progress")
 PANEL2_ACTIVEOPERATION = _(u"Activities: %(totalOperation)s ongoing")
+PANEL2_ANDMORETODO = _(u"... and %(cachedOperation)s more.")
 
 
 ##### MAINWINDOW PANEL3 #####
@@ -187,6 +194,8 @@ PANEL3_KEY_COLUMN_NAME = _(u'key')
 PANEL3_VALUE_COLUMN_NAME = _(u'value')
 PANEL3_USER_SECTION_TITLE = _(u'User')
 PANEL3_TITLE = _(u'Options')
+PANEL3_ADVANCED_BUTTON = _(u'Advanced')
+PANEL3_BASIC_BUTTON = _(u'Basic')
 
 ##### TBICON MENU #####
 MENU_COMMIT_FORCE = _(u'Force Commit')
@@ -280,14 +289,18 @@ LOG_DIALOG_TITLE = _(u"FileRock - Logviewer")
 
 ###### SLIDER DIALOG #####
 SLIDER_DIALOG_TITLE = _(u"Welcome to FileRock!")
+SLIDER_DIALOG_NEXT = _(u"&Next")
+SLIDER_DIALOG_SKIP = _(u"&Skip")
+SLIDER_DIALOG_PREV = _(u"&Prev")
 SLIDER_SHOW_ON_EVERY_STARTUP = _(u"Show welcome at startup")
+
 
 ###### MISC ###########
 UNKNOWN = _(u"Unknown")
 
 ###### CONFING LABEL ######
 CONFIG_CONFIG_DIR_LABEL = _(u"Configuration Dir")
-CONFIG_CLIENT_PRIV_KEY_FILE_LABEL = _(u"Private key")
+CONFIG_PRIV_KEY_FILE_LABEL = _(u"Private key")
 CONFIG_USERNAME_LABEL = _(u"Username")
 CONFIG_ON_TRAY_CLICK_LABEL = _(u"Left click on trayicon")
 CONFIG_ON_TRAY_CLICK_OPTIONS_0 = _(u"Open FileRock Panel")
@@ -296,13 +309,19 @@ CONFIG_TEMP_DIR_LABEL = _(u"Temporary Dir")
 CONFIG_WAREBOX_PATH_LABEL = _(u"FileRock folder")
 CONFIG_CLIENT_ID_LABEL = _(u"Client ID")
 CONFIG_OSX_LABEL_LABEL = _(u"Enable labels (Experimental)")
-CONFIG_PROXY_LABEL = _("Use Proxy")
+CONFIG_PROXY_LABEL = _(u"Use Proxy")
 CONFIG_CLOUD_STORAGE_LABEL = _(u"Cloud storage provider")
 CONFIG_CLOUD_REPLICA_LABEL = _(u"Keep data replica on")
+CONFIG_PRESENTATION_LABEL = _(u"Show presentation")
+CONFIG_AUTOUPDATE_LABEL = _(u"Updates")
+CONFIG_LAUNCH_ON_STARTUP_LABEL = _(u"Launch on startup")
+CONFIG_BANDWIDTH_LIMIT_LABEL = _(u'Bandwidth limit (KiB/s)')
+CONFIG_BANDWIDTH_UPLOAD_LABEL = _(u'Upload:')
+CONFIG_BANDWIDTH_DOWNLOAD_LABEL = _(u'Download:')
 
 ###### CONFING TOOLTIP ######
 CONFIG_CONFIG_DIR_TOOLTIP = _(u"Configuration Dir ToolTip")
-CONFIG_CLIENT_PRIV_KEY_FILE_TOOLTIP = _(u"Private key TootTip")
+CONFIG_PRIV_KEY_FILE_TOOLTIP = _(u"Private key TootTip")
 CONFIG_USERNAME_TOOLTIP = _(u"Username ToolTip")
 CONFIG_TEMP_DIR_TOOLTIP = _(u"Temporary Dir ToolTip")
 CONFIG_WAREBOX_PATH_TOOLTIP = _(u"Change the location of your FileRock Folder")
@@ -321,6 +340,20 @@ This feature will be available soon.")
 CONFIG_CLOUD_REPLICA_TOOLTIP = _(u"For increased protection: select a Cloud \
 Storage Provider where you want to keep a replica of all your data. \
 This feature will be available soon.")
+
+CONFIG_PRESENTATION_TOOLTIP = _(u"Show presentation when FileRock starts")
+CONFIG_AUTOUPDATE_TOOLTIP = _(u"Automatically apply updates")
+CONFIG_LAUNCH_ON_STARTUP_TOOLTIP = _(u"Launch FileRock at login")
+
+CONFIG_LEFTCLICK_PANEL = _(u"Open FileRock Panel")
+CONFIG_LEFTCLICK_FOLDER = _(u"Open FileRock Folder")
+
+CONFIG_AUTOUPDATE = _(u"Apply updated automatically")
+CONFIG_ASKFORUPDATE = _(u"Ask me before applying updates")
+
+CONFIG_BANDWIDTH_LIMIT_UPLOAD_TOOLTIP = _(u'Limit upload bandwidth (KiB/s). When set to 0, all the available bandwidth can be used.')
+CONFIG_BANDWIDTH_LIMIT_DOWNLOAD_TOOLTIP = _(u'Limit download bandwidth (KiB/s). When set to 0, all the available bandwidth can be used.')
+
 
 CONFIG_CLOUD_SEEWEB = _(u"Seeweb")
 CONFIG_CLOUD_AMAZON = _(u"Amazon S3")

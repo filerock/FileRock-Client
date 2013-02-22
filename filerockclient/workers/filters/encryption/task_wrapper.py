@@ -41,6 +41,7 @@ FileRock Client is licensed under GPLv3 License.
 """
 
 from filerockclient.workers.filters.abstract.task_wrapper import TaskWrapper as AbstractTaskWrapper
+from filerockclient.workers.filters.encryption import utils as CryptoUtils
 from tempfile import mkstemp
 from binascii import unhexlify, hexlify
 from Crypto import Random
@@ -87,21 +88,13 @@ class TaskWrapper(AbstractTaskWrapper):
         self.key = unhexlify(cfg.get('User', 'encryption_key'))
         self.__check_enc_dir(enc_dir)
         if self.task.to_encrypt:
-            temp_dir = enc_dir
-            encrypted_fd, encrypted_pathname = mkstemp(dir=temp_dir)
-            self.task.encrypted_pathname = unicode(encrypted_pathname)
-            self.task.encrypted_fd = encrypted_fd
-            os.close(encrypted_fd)
+            CryptoUtils.set_temp_file(self.task, cfg, enc_dir)
             self.iv = Random.new().read(16)
             self.task.iv = unicode(hexlify(self.iv))
             self.out_pathname = self.task.encrypted_pathname
         elif self.task.to_decrypt:
             if not self.task.encrypted_pathname:
-                temp_dir = enc_dir
-                encrypted_fd, encrypted_pathname = mkstemp(dir=temp_dir)
-                self.task.encrypted_pathname = encrypted_pathname
-                self.task.encrypted_fd = encrypted_fd
-                os.close(encrypted_fd)
+                CryptoUtils.set_temp_file(self.task, cfg, enc_dir)
             self.in_pathname = self.task.encrypted_pathname
 
 

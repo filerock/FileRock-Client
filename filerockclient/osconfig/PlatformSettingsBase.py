@@ -40,26 +40,63 @@ FileRock Client is licensed under GPLv3 License.
 
 """
 
-import logging
+import logging, os
 
 class PlatformSpecificSettingsBase(object):
 
+     # List of arguments that shall never go into autostart command string
+    BLACKLISTED_ARGUMENTS = [
+        u"--restart-count",
+        u"-d"
+    ]
+
     def __init__(self, *args, **kdws):
-        super(PlatformSpecificSettingsBase, self).__init__(*args, **kdws)
+        self.cmdline_args = kdws['cmdline_args']
         self.logger = logging.getLogger("FR.%s" % self.__class__.__name__)
 
     def set_autostart(self, enable):
         """ Enable/disable client start on system startup """
-        assert False, "Unimplemented method set_autostart() called"
+        assert False, u"Unimplemented method set_autostart() called"
 
     def is_systray_icon_whitelisted(self):
         """ Check if tray icon will be visible (Ubuntu with Unity only) """
-        assert False, "Unimplemented method is_systray_icon_whitelisted() called"
+        assert False, u"Unimplemented method is_systray_icon_whitelisted() called"
 
 
     def whitelist_tray_icon(self):
         """ Sets client tray icon visible (Ubuntu with Unity only) """
-        assert False, "Unimplemented method whitelist_tray_icon() called"
+        assert False, u"Unimplemented method whitelist_tray_icon() called"
+
+    def _get_command_string(self):
+        """
+        Returns a string representing command line to start
+        FileRock client, possibly stripping some unwanted args
+
+        Might be overridden by PlatformSettings* classes
+        """
+
+        # Get filtered cmd line args
+        arguments = self._filter_cmd_line_args(self.cmdline_args)
+
+        # Ugly trick to patch relative path related issues
+        # Abs-pathize everything that looks like a valid path
+        arguments = map(
+            lambda arg : os.path.abspath(arg) if not arg.startswith("-") and os.path.exists(arg) else arg,
+            arguments
+        )
+
+        return " ".join(arguments).strip()
 
 
+    def _filter_cmd_line_args(self, arguments):
+        """
+        Return a filtered list of cmd line args, which will
+        be added to the launch agent plist file
+
+        Might be overridden by PlatformSettings* classes
+        """
+
+        # Just strips everything that starts with a "-"
+        # TODO: implement a smarter cmdline argument filtering strategy
+        return filter(lambda arg: not arg.startswith("-"), arguments)
 

@@ -47,6 +47,7 @@ import calendar
 import json
 import pickle
 import hashlib
+import subprocess
 
 
 def get_hash(obj):
@@ -294,6 +295,41 @@ def convert_line_endings(temp, mode=None):
         raise ValueError('Bad line separator mode: %r' % mode)
 
     return temp
+
+def _try_remove(pathname, logger=None):
+    max_retry = 2
+    for i in range(max_retry):
+        try:
+            os.remove(pathname)
+        except Exception:
+            if logger is not None:
+                logger.debug(u"Failed to delete %s" % pathname)
+            if i == (max_retry-1):
+                if logger is not None:
+                    logger.debug("Giving up on %s deletion" % pathname)
+            else:
+                if logger is not None:
+                    logger.debug(u"I'll retry after one second")
+                time.sleep(1)
+        else:
+            if logger is not None:
+                logger.debug(u'File %s deleted' % pathname)
+            break
+
+def open_folder_in_system_shell(folder_path):
+    """Open the given folder path in the system shell.
+    """
+    if not os.path.isdir(folder_path):
+        return
+
+    if sys.platform.startswith('linux'):
+        os.system('xdg-open %s' % folder_path)
+
+    elif sys.platform.startswith('win'):
+        subprocess.Popen('explorer "%s"' % folder_path)
+
+    elif sys.platform.startswith('darwin'):
+        os.system('open %s' % folder_path)
 
 
 if __name__ == '__main__':

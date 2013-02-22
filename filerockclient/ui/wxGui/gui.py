@@ -46,12 +46,10 @@ import sys
 import os
 import logging
 import webbrowser
-
 from contextlib import contextmanager
 
 from filerockclient.ui.wxGui.ask_for_user_input import Ask_for_user_input
 from filerockclient.ui.wxGui.notify_user import Notify_user
-
 from filerockclient.interfaces import GStatuses
 from filerockclient.ui.interfaces import HeyDriveUserInterfaceNotification
 from filerockclient.interfaces import LinkingStatuses as LS
@@ -60,9 +58,10 @@ from filerockclient.ui.wxGui.dialogs.syncdialog import SyncDialog
 from filerockclient.ui.wxGui.dialogs.logviewer import LogFrame
 from filerockclient.ui.wxGui.dialogs.wareboxdialog import WareboxDialog
 from filerockclient.ui.wxGui.dialogs.sliderdialog.SliderDialog import SliderDialog
-from filerockclient.ui.wxGui import TBIcon, Utils
-
+from filerockclient.ui.wxGui import TBIcon, Utils, constants
+from filerockclient.ui.wxGui.leaky_bucket import LeakyBucket
 from filerockclient.ui.wxGui.MainWindow import MainWindow
+from filerockclient.util.utilities import open_folder_in_system_shell
 
 # #### custom events declarations
 from wx.lib.newevent import NewEvent
@@ -327,11 +326,12 @@ class GUI(wx.App, HeyDriveUserInterfaceNotification):
         @param extras: a dictionary containing useful informations
         """
         if self.isReady():
-            evt = GuiUpdatePathnameStatusWxEvent(pathname=pathname,
-                                                 status=newStatus,
-                                                 extras=extras
-                                                 )
-            wx.PostEvent(self, evt)
+            self.leaky_bucket.new_pathname_event(pathname, newStatus, extras)
+#             evt = GuiUpdatePathnameStatusWxEvent(pathname=pathname,
+#                                                  status=newStatus,
+#                                                  extras=extras
+#                                                  )
+#             wx.PostEvent(self, evt)
 
     def newLogLine(self, line):
         """
@@ -387,11 +387,16 @@ class GUI(wx.App, HeyDriveUserInterfaceNotification):
 
         self.ask_user_methods = Ask_for_user_input(self)
         self.notify_user_methods = Notify_user(self)
-        self.mainWindow = MainWindow(self, None, -1, "")
+
+        images_dir = constants.IMAGE_PATH
+        icons_dir = constants.ICON_PATH
+        self.mainWindow = MainWindow(self, images_dir, icons_dir, None, -1, "")
         self.SetTopWindow(self.mainWindow)
 
         self.sliderDialog = None
         self.sync_dialog = None
+
+        self.leaky_bucket = LeakyBucket(self, GuiUpdatePathnameStatusWxEvent)
 
         self.linkDialog = LinkDialog.LinkDialog(self, None, -1, "")
         self.logViewer = LogFrame.LogFrame(None, -1, "")
@@ -429,14 +434,7 @@ class GUI(wx.App, HeyDriveUserInterfaceNotification):
         full_warebox_path = self.client.get_warebox_path()
         if full_warebox_path is None:
             return
-        if sys.platform.startswith('linux'):
-            os.system("xdg-open " + full_warebox_path)
-        elif sys.platform.startswith('win'):
-            import subprocess
-            subprocess.Popen('explorer "%s"' % full_warebox_path)
-
-        elif sys.platform.startswith('darwin'):
-            os.system("open " + full_warebox_path)
+        open_folder_in_system_shell(full_warebox_path)
 
     def OnTrayBarLeftClick(self, event):
         """
@@ -494,6 +492,8 @@ class GUI(wx.App, HeyDriveUserInterfaceNotification):
                                                 event.result['warebox_path'],
                                                 None, -1, "")
         with self.tbiconlocked():
+            self.wareboxDialog.Show()
+            self.wareboxDialog.warebox_ctrl.SetPath(event.result['warebox_path'].strip())
             result = self.wareboxDialog.ShowModal()
             if result == wx.ID_OK:
                 event.result['result'] = True
@@ -554,6 +554,7 @@ class GUI(wx.App, HeyDriveUserInterfaceNotification):
             self.logViewer.Hide()
         else:
             self.logViewer.Show()
+            self.logViewer.Raise()
 
     def OnTBiconLocked(self, event):
         """

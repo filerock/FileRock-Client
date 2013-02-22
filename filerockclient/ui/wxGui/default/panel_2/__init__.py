@@ -46,7 +46,7 @@ import os
 from filerockclient.interfaces import GStatuses, PStatuses as Pss
 from filerockclient.ui.wxGui import Messages
 from wx.lib.mixins.listctrl import ListCtrlAutoWidthMixin
-from filerockclient.ui.wxGui.Utils import IMAGE_PATH
+from filerockclient.ui.wxGui.constants import IMAGE_PATH
 from filerockclient.workers.filters.encryption import utils
 
 
@@ -84,7 +84,9 @@ PERCENTAGE_STATUSES = [
 
 KNOW_STATUSES = ACTIVE_STATUSES + INACTIVE_STATUSES + [Pss.ALIGNED]
 
-MAX_OP_TO_SHOW = 100
+MAX_OP_TO_SHOW = 20
+
+AND_MORE_KEY = u'AND MORE'
 
 def _img(filename):
     return wx.Bitmap(os.path.join(IMAGE_PATH, filename))
@@ -119,6 +121,7 @@ class AutoWidthListCtrl(wx.ListCtrl, ListCtrlAutoWidthMixin):
         }
 
         image_list = wx.ImageList(32, 32)
+        self._and_more_img = image_list.Add(_img('and_more.png'))
 
         self.pathname_status_icon = {
             Pss.TOBEUPLOADED:   image_list.Add(_img('go-up-gray.png')),
@@ -148,6 +151,8 @@ class AutoWidthListCtrl(wx.ListCtrl, ListCtrlAutoWidthMixin):
         self.active_operations = 0
 
     def _remove_pathname(self, pathname):
+        if pathname not in self.item_data_map:
+            return
         if self.item_data_map[pathname][0] == Pss.DOWNLOADING:
             self.pathname_to_remove.add(pathname)
             if len(self.pathname_to_remove) > 10 \
@@ -189,16 +194,16 @@ class AutoWidthListCtrl(wx.ListCtrl, ListCtrlAutoWidthMixin):
             self.item_data_map[pathname] = (status, percentage)
             self.SortItems()
 
-
-
-    def _total_operations(self):
-        return len(self.item_index_map)
+    def _add_remaining_operations(self, remaining):
+        self.item_data_map[AND_MORE_KEY] = (-1, remaining)
+        self.SortItems()
 
     def add_update_operation(self,
                              pathname,
                              status,
-                             percentage=0):
-#         if status == Pss.ALIGNED:
+                             percentage=-1,
+                             cached_operations=0):
+
         if status not in ACTIVE_STATUSES + INACTIVE_STATUSES:
             if pathname in self.item_data_map:
                 prev_status = self.item_data_map[pathname][0]
@@ -207,12 +212,20 @@ class AutoWidthListCtrl(wx.ListCtrl, ListCtrlAutoWidthMixin):
         else:
             self._add_pathname(pathname, status, percentage)
 
+        if cached_operations > 0:
+            self._add_remaining_operations(cached_operations)
+        else:
+            self._remove_pathname(AND_MORE_KEY)
 
     ############## ListCtrl methods #################
 
     def OnGetItemImage(self, item):
+        if len(self.item_index_map)<=item:
+            return None
         pathname = self.item_index_map[item]
         status, _ = self.item_data_map[self.item_index_map[item]]
+        if pathname == AND_MORE_KEY:
+            return self._and_more_img
         if utils.is_pathname_encrypted(pathname):
             return self.encrypted_pathname_status_icon[status]
         else:
@@ -223,9 +236,19 @@ class AutoWidthListCtrl(wx.ListCtrl, ListCtrlAutoWidthMixin):
             pathname = self.item_index_map[item]
             if pathname in self.item_data_map:
                 if col == 0:
-                    return pathname
+                    if pathname == AND_MORE_KEY:
+                        return Messages.PANEL2_ANDMORETODO % {
+                            u'cachedOperation': self.item_data_map[pathname][1]
+                        }
+                    else:
+                        return pathname
                 else:
-                    return "%s%%" % self.item_data_map[pathname][1]
+                    if pathname == AND_MORE_KEY:
+                        return ''
+                    if self.item_data_map[pathname][1] >= 0:
+                        return "%s%%" % self.item_data_map[pathname][1]
+                    else:
+                        return ''
         else:
             return ''
 
@@ -236,14 +259,14 @@ class AutoWidthListCtrl(wx.ListCtrl, ListCtrlAutoWidthMixin):
         self.SetItemCount(len(self.item_index_map))
         # redraw the list
         self.Refresh()
-        
+
     def _sorting_strategy(self, pathname):
         if pathname in self.item_index_map\
         and len(self.item_data_map[pathname]) > 0\
         and self.item_data_map[pathname][0] in STATUS_ORDER:
             return STATUS_ORDER.index(self.item_data_map[pathname][0])
         else:
-            return -1
+            return len(STATUS_ORDER)+5
 
 
 class Panel2(wx.Panel):
@@ -261,11 +284,15 @@ class Panel2(wx.Panel):
         self.__do_layout()
         self._catch_events = True
         self._show_legend()
+        self._cached_operations = 0
+        self._posted_operations = 0
 
     def updateStatus(self, status):
         if status == GStatuses.NC_STOPPED:
             self._catch_events = False
             self._activities.empty()
+            self._cached_operations = 0
+            self._posted_operations = 0
             self._update_activities_label()
             self._show_legend()
         else:
@@ -275,14 +302,19 @@ class Panel2(wx.Panel):
         if not self._catch_events:
             return
 
-        percentage = 0
+        percentage = -1
         if extras is not None:
             if 'percentage' in extras:
                 percentage = extras['percentage']
+            if 'cached_operations' in extras:
+                self._cached_operations = extras['cached_operations']
+            if 'posted_operations' in extras:
+                self._posted_operations = extras['posted_operations']
 
         self._activities.add_update_operation(pathname,
-                                             status,
-                                             percentage)
+                                              status,
+                                              percentage,
+                                              self._cached_operations)
         self._update_view()
 
     def __do_layout(self):
@@ -290,7 +322,7 @@ class Panel2(wx.Panel):
         sizer_4.Add(self._activities, 1, wx.EXPAND, 0)
 
         ###########DO NOT REMOVE#############
-        sizer_4.Add(self._image, 1, wx.ALIGN_CENTER_VERTICAL | wx.ALIGN_CENTER_HORIZONTAL, 0)
+        sizer_4.Add(self._image, 0, wx.ALIGN_CENTER_HORIZONTAL|wx.ALL, 0)
         #####################################
 
         self.SetSizer(sizer_4)
@@ -323,11 +355,10 @@ class Panel2(wx.Panel):
         self._update_activities_label()
 
     def _update_activities_label(self):
-        ongoing_operation = self._activities._total_operations()
-        if ongoing_operation > 0:
+        if self._cached_operations + self._posted_operations > 0:
             label = Messages.PANEL2_ACTIVEOPERATION % {
 #                "activeOperation": self._activities.active_operations,
-                "totalOperation": ongoing_operation
+                "totalOperation": self._cached_operations + self._posted_operations
                 }
         else:
             label = Messages.PANEL2_TITLE

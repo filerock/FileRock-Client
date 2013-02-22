@@ -115,6 +115,8 @@ class DisconnectedState(ServerSessionState):
         for message in self.messages_to_handle_before_start:
             self._handle_message(message)
         self._context._internal_facade.set_global_status(GStatuses.NC_STOPPED)
+        
+        self._context.worker_pool.clean_download_dir()
 
     def _handle_command_CONNECT(self, message):
         """Connect to the server.

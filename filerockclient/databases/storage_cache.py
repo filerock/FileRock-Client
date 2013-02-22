@@ -27,9 +27,6 @@
 """
 This is the storage_cache module.
 
-
-
-
 ----
 
 This module is part of the FileRock Client.
@@ -42,14 +39,23 @@ FileRock Client is licensed under GPLv3 License.
 
 import logging
 import datetime
-import os
-import copy
-from contextlib import contextmanager
 
-from filerockclient.databases.sqlite_new import SQLiteDB
+from filerockclient.databases.abstract_cache import AbstractCache
 
 
-class StorageCache(object):
+TABLE_NAME = "storage_cache"
+
+SCHEMA = ["pathname text",
+          "warebox_size int",
+          "storage_size int",
+          "lmtime text",
+          "warebox_etag text",
+          "storage_etag text"]
+
+KEY = "pathname"
+
+
+class StorageCache(AbstractCache):
     '''
     The last known state of the storage.
     The lmtime (last modification time) field has the following meaning:
@@ -61,50 +67,17 @@ class StorageCache(object):
     '''
 
     def __init__(self, database_file):
-        self._logger = logging.getLogger("FR.%s" % self.__class__.__name__)
-        self._db = SQLiteDB(database_file)
-        self._filename = database_file
-        self.recreated = False
-        self._recreate_db_if_not_exists()
-        self._autocommit = True
+        logger = logging.getLogger("FR.%s" % self.__class__.__name__)
+        AbstractCache.__init__(
+                self, database_file, TABLE_NAME, SCHEMA, KEY, logger)
 
-    def _recreate_db_if_not_exists(self):
-        must_recreate = False
-
-        if not os.path.exists(self._filename):
-            must_recreate = True
-        else:
-            try:
-                self._db.query("SELECT * FROM storage_cache LIMIT 1")
-                must_recreate = False
-            except Exception:
-                must_recreate = True
-
-        if must_recreate:
-            self._logger.debug(
-                u"Initializing a new storage_cache database "
-                u"because no valid database could be found.")
-            self._initialize()
-            self.recreated = True
-
-    def _initialize(self):
-        if os.path.exists(self._filename):
-            os.remove(self._filename)
-        with self.transaction() as transactional_self:
-            transactional_self._db.execute(
-                                      "CREATE TABLE storage_cache ("
-                                      "pathname text, warebox_size int, "
-                                      "storage_size int, lmtime text, "
-                                      "warebox_etag text, storage_etag text)")
-        self._logger.debug(u"Created storage_cache table")
-
-    def get_all(self):
+    def get_all_records(self):
         """
         Returns either the list of tuples or False on error.
 
         The row is represented as a tuple containing the values of columns
         """
-        records = self._query('SELECT * FROM storage_cache')
+        records = AbstractCache.get_all_records(self)
         result = []
         for record in records:
             pathname, warebox_size, storage_size, _, _, _ = record
@@ -114,27 +87,14 @@ class StorageCache(object):
                            warebox_etag, storage_etag))
         return result
 
-    def exists_record(self, pathname):
-        """
-        Returns true if a there is a row with the given pathname
-
-        @param pathname: the pathname you are looking for
-        @return: boolean
-        """
-        result = self._query(
-            "SELECT COUNT(*) FROM storage_cache "
-            "WHERE pathname = ?", (pathname,))
-        count = result[0][0]
-        return count > 0
-
-    def exists_record_proper_prefix(self, prefix):
+    def exist_record_proper_prefix(self, prefix):
         """
         Checks the presence of pathnames with the given prefix
 
         @param prefix: a string prefix
         """
         query = "SELECT COUNT(*) FROM storage_cache " \
-                "WHERE pathname LIKE ( ? || '%') AND NOT pathname = ?"
+                "WHERE pathname LIKE (? || '%') AND NOT pathname = ?"
         result = self._query(query, (prefix, prefix))
         count = result[0][0]
         return count > 0
@@ -142,93 +102,11 @@ class StorageCache(object):
     def update_record(self,
                 pathname, warebox_size, storage_size, lmtime,
                 warebox_etag, storage_etag):
-        """
-        Updates the record with the given pathname
 
-        @param pathname: the string representing the pathname
-        @param warebox_size:
-                    the size of the file in the filerock folder
-        @param storage_size:
-                    the size of the file in the storage, encrypted file have
-                    different size from the plain one
-        @param lmtime:
-                    last modification time of the pathname in the format
-                    YYYY-MM-DD HH:mm:ss
-        @param warebox_etag:
-                    the md5 of the file in the filerock folder
-        @param storage_etag:
-                    the md5 of the file in the storage, encrypted file have
-                    different md5 from the plain one
-        """
-
-        args = (pathname, warebox_size, storage_size,
-                lmtime, warebox_etag, storage_etag)
-
-        if self.exists_record(pathname):
-            self._update_record(*args)
-        else:
-            self._insert_record(*args)
-
-    def _update_record(self,
-                pathname, warebox_size, storage_size, lmtime,
-                warebox_etag, storage_etag):
-
-        statement = ('UPDATE storage_cache SET '
-                     'warebox_size = ?, storage_size = ?, lmtime = ?, '
-                     'warebox_etag = ?, storage_etag = ? WHERE pathname = ?')
         lmtime_str = lmtime.strftime('%Y-%m-%d %H:%M:%S')
-        values = (warebox_size, storage_size, lmtime_str,
-                  warebox_etag, storage_etag, pathname)
-        self._execute(statement, values)
-
-    def _insert_record(self,
-                pathname, warebox_size, storage_size, lmtime,
-                warebox_etag, storage_etag):
-
-        statement = 'INSERT INTO storage_cache VALUES (?, ?, ?, ?, ?, ?)'
-        lmtime_str = lmtime.strftime('%Y-%m-%d %H:%M:%S')
-        values = (pathname, warebox_size, storage_size, lmtime_str,
-                  warebox_etag, storage_etag)
-        self._execute(statement, values)
-
-    def delete_record(self, pathname):
-        statement = "DELETE FROM storage_cache WHERE pathname = ?"
-        values = (pathname,)
-        self._execute(statement, values)
-
-    def _execute(self, statement, parameters=[]):
-        if not self._autocommit:
-            self._db.execute(statement, parameters)
-        else:
-            with self.transaction() as transactional_self:
-                transactional_self._db.execute(statement, parameters)
-
-    def _query(self, statement, parameters=[]):
-        try:
-            return self._db.query(statement, parameters)
-        finally:
-            if self._autocommit:
-                self._db.close()
-
-    @contextmanager
-    def transaction(self):
-        transactional_self = copy.copy(self)
-        transactional_self._autocommit = False
-        transactional_self._db.begin_transaction()
-        try:
-            yield transactional_self
-        except:
-            transactional_self._db.rollback_transaction()
-            raise
-        else:
-            transactional_self._db.commit_transaction()
-        finally:
-            transactional_self._db.close()
-
-    def clear(self):
-        self._logger.debug('Cleaning the storage_cache')
-        statement = "DELETE FROM storage_cache"
-        self._execute(statement)
+        AbstractCache.update_record(self,
+                               pathname, warebox_size, storage_size,
+                               lmtime_str, warebox_etag, storage_etag)
 
 
 if __name__ == '__main__':

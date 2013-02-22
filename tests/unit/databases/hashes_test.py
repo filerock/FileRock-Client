@@ -25,10 +25,7 @@
 #
 
 """
-This is the app module.
-
-
-
+This is the hashes_test module.
 
 ----
 
@@ -39,12 +36,30 @@ Copyright (C) 2012 - Heyware s.r.l.
 FileRock Client is licensed under GPLv3 License.
 
 """
-import wx
-from ProgressDialog import ProgressDialog
-if __name__ == "__main__":
-    app = wx.PySimpleApp()
-    #job = EggTimerJob(duration = 10)
-    dlg = ProgressDialog(None, None)
-    #job.SetProgressMessageWindow(dlg)
-    #job.Start()
-    dlg.ShowModal()
+
+from nose.tools import *
+import os
+
+from filerockclient.databases.hashes import HashesDB
+
+
+def test_hash_insertion():
+    db = HashesDB(get_fresh_filename('hashes.db'))
+    db.add('ABC', 'DEF', user_accepted=False)
+    print db.list()
+
+
+# Helper functions:
+
+def get_current_dir(current_module):
+    return os.path.dirname(os.path.abspath(current_module))
+
+
+def get_fresh_filename(name):
+    data_dir = os.path.join(get_current_dir(__file__), 'test_data')
+    if not os.path.exists(data_dir):
+        os.mkdir(data_dir)
+    pathname = os.path.join(data_dir, name)
+    if os.path.exists(pathname):
+        os.remove(pathname)
+    return pathname
