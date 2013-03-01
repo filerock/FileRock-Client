@@ -48,6 +48,7 @@ import logging
 import webbrowser
 from contextlib import contextmanager
 
+from filerockclient.constants import IS_DARWIN
 from filerockclient.ui.wxGui.ask_for_user_input import Ask_for_user_input
 from filerockclient.ui.wxGui.notify_user import Notify_user
 from filerockclient.interfaces import GStatuses
@@ -492,7 +493,8 @@ class GUI(wx.App, HeyDriveUserInterfaceNotification):
                                                 event.result['warebox_path'],
                                                 None, -1, "")
         with self.tbiconlocked():
-            self.wareboxDialog.Show()
+            if not IS_DARWIN:
+                self.wareboxDialog.Show()
             self.wareboxDialog.warebox_ctrl.SetPath(event.result['warebox_path'].strip())
             result = self.wareboxDialog.ShowModal()
             if result == wx.ID_OK:

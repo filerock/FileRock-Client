@@ -3,6 +3,20 @@
 FileRock Client - Changelog
 ===========================
 
+
+Version 0.4.4
+
+- Feb. 28, 2013
+
+Fixed bugs:
+
+- On OSX the dialog asking to select a folder to synchronize could crash
+  unexpectedly.
+- The application could fail to automatically restart after an update.
+
+
+---------------------------
+
 Version 0.4.2
 
 - Feb. 21, 2013

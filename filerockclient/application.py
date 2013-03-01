@@ -339,6 +339,7 @@ class Application(object):
                 # TODO: this will be replaced by an UPDATE command
                 logger.info(u"Client is going to be updated, shutting down")
                 self._terminate(core, logger)
+                self._close_lockfile()
                 logger.info(u"Starting update procedure...")
                 try:
                     updater = PlatformUpdater(
@@ -376,6 +377,15 @@ class Application(object):
                         " another instance running.")
             return False
         return lockfile
+
+    def _close_lockfile(self):
+        """Try to close lockfile (see _check_unique_instance_running)
+        """
+        try:
+            self._lockfile.close()
+        except Exception as e:
+            self.logger.debug(u"Can't close lockfile (maybe someone already "
+                              "closed it): %s" % e)
 
     def _open_warebox_folder(self, cfg):
         """Open the warebox in the system shell.
@@ -732,6 +742,7 @@ class Application(object):
                 u"Last error stacktrace:\n%r" % traceback.format_exc())
             self._hard_reset(logger)
 
+
     def _full_reset(self, core, logger, last_reset_time):
         """
         Perform a "full reset" of the application.
@@ -773,7 +784,7 @@ class Application(object):
         # os.exec*. This would prevent the client from restarting
         # (self-deadlock), so we explicitly close the lockfile
         # handle just before to reset.
-        self._lockfile.close()
+        self._close_lockfile()
 
         cmdline_args = self.cmdline_args[:]
 
@@ -809,7 +820,7 @@ class Application(object):
 
         cmdline_args = escape_cmdline_args(cmdline_args)
 
-        
+
         # TODO: we should flush every open file descriptor before execv*
         # (see http://docs.python.org/2/library/os.html#os.execvpe)
         os.execvp(cmdline_args[0], tuple(cmdline_args))
