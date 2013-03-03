@@ -25,7 +25,7 @@ import sys
 SHEBANG_LINUX = "/usr/bin/env python2"
 SHEBANG_OSX = "/usr/bin/env arch -i386 %s" % sys.executable
 
-VERSION = '0.4.2'
+VERSION = '0.4.4'
 # MAINTAINERS SHOULD SET EXECUTABLE_PATH & COMMAND_LINE_ARGUMENTS
 # CONSTANTS PROPERLY.
 # This should be a string, representing the executable to launch the client.
