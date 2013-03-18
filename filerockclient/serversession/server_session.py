@@ -188,6 +188,7 @@ class ServerSession(threading.Thread):
         self.refused_declare_count = 0
         self._current_basis = None
         self.id = 0
+        self._sync_operations = []
 
         self.keepalive_timer = ConnectionLifeKeeper(
                                 self._input_queue, self.input_keepalive_queue,
@@ -445,18 +446,68 @@ class ServerSession(threading.Thread):
         """
         self._input_queue.put(Command('WORKERFREE'), 'systemcommand')
 
-    def signal_download_integrity_error(self, operation, bad_etag):
-        """
-        Tell ServerSession that a downloaded file had an etag different
-        from the expected one.
+    def signal_download_integrity_error(
+            self, operation, reason,
+            expected_etag, expected_basis,
+            actual_etag, computed_basis):
+        """Tell ServerSession that the integrity check of a downloaded
+        file has failed.
 
         This method is meant to be called by Workers.
+
+        @param operation:
+                    Instance of PathnameOperation. Remember that it
+                    contains also its Proof object.
+        @param reason:
+                    String shortly describing the error.
+        @param expected_etag:
+                    The etag the file was expected to have. It's the one
+                    communicated by the server in its file list.
+        @param expected_basis:
+                    The trusted basis. It's the one the user had
+                    accepted when the sync started.
+        @param actual_etag:
+                    The etag the file has turned to have after being
+                    downloaded.
+        @param computed_basis:
+                    The basis returned by the IntegrityManager when
+                    computing the given proof object. Possibly None.
         """
         cmd = Command('INTEGRITYERRORONDOWNLOAD')
         cmd.operation = operation
-        cmd.bad_etag = bad_etag
+        cmd.proof = operation.download_info['proof']
+        cmd.reason = reason
+        cmd.expected_etag = expected_etag
+        cmd.expected_basis = expected_basis
+        cmd.actual_etag = actual_etag
+        cmd.computed_basis = computed_basis
         self._input_queue.put(cmd, 'systemcommand')
-        self.transaction.cancel_waiting()
+
+    def signal_deletelocal_integrity_error(
+            self, pathname, proof, reason, expected_basis, computed_basis):
+        """Tell ServerSession that the integrity check of a
+        pathname to delete locally has failed.
+
+        This method is meant to be called by Workers.
+
+        @param pathname:
+                    String representing the pathname.
+        @param reason:
+                    String shortly describing the error.
+        @param expected_basis:
+                    The trusted basis. It's the one the user had
+                    accepted when the sync started.
+        @param computed_basis:
+                    The basis returned by the IntegrityManager when
+                    computing the given proof object. Possibly None.
+        """
+        cmd = Command('INTEGRITYERRORONDELETELOCAL')
+        cmd.pathname = pathname
+        cmd.proof = proof
+        cmd.reason = reason
+        cmd.expected_basis = expected_basis
+        cmd.computed_basis = computed_basis
+        self._input_queue.put(cmd, 'systemcommand')
 
     def get_current_basis(self):
         """

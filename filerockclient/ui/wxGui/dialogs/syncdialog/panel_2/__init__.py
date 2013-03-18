@@ -73,11 +73,11 @@ class AutoWidthListCtrl(wx.ListCtrl, ListCtrlAutoWidthMixin):
         imageList = wx.ImageList(32,32)
 
         self.pathname_status_icon = {
-            Pss.DOWNLOADNEEDED: imageList.Add(wx.Bitmap(os.path.join(IMAGE_PATH, 'go-down.png'))),
-            Pss.LOCALDELETENEEDED: imageList.Add(wx.Bitmap(os.path.join(IMAGE_PATH, 'go-rm.png'))),
-            Pss.LOCALRENAMENEEDED: imageList.Add(wx.Bitmap(os.path.join(IMAGE_PATH, 'go-move.png'))),
-            Pss.LOCALCOPYNEEDED: imageList.Add(wx.Bitmap(os.path.join(IMAGE_PATH, 'go-copy.png'))),
-            Pss.UPLOADNEEDED: imageList.Add(wx.Bitmap(os.path.join(IMAGE_PATH, 'go-up.png')))
+            Pss.DOWNLOADNEEDED: imageList.Add(wx.Bitmap(os.path.join(IMAGE_PATH, 'GUI-icons/go-down.png'))),
+            Pss.LOCALDELETENEEDED: imageList.Add(wx.Bitmap(os.path.join(IMAGE_PATH, 'GUI-icons/go-rm.png'))),
+            Pss.LOCALRENAMENEEDED: imageList.Add(wx.Bitmap(os.path.join(IMAGE_PATH, 'GUI-icons/go-move.png'))),
+            Pss.LOCALCOPYNEEDED: imageList.Add(wx.Bitmap(os.path.join(IMAGE_PATH, 'GUI-icons/go-copy.png'))),
+            Pss.UPLOADNEEDED: imageList.Add(wx.Bitmap(os.path.join(IMAGE_PATH, 'GUI-icons/go-up.png')))
         }
 
         self.AssignImageList(imageList, wx.IMAGE_LIST_SMALL)

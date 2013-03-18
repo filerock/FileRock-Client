@@ -45,8 +45,10 @@ class FileRockException(Exception):
     '''The root of all FileRock evil'''
     pass
 
+
 class HashMismatchException(FileRockException):
     pass
+
 
 class FailedLinkingException(FileRockException):
     pass
@@ -70,6 +72,7 @@ class UpdateRequestedException(FileRockException):
 
 class UpdateRequestedFromTrunkClient(FileRockException):
     pass
+
 
 class MandatoryUpdateDeniedException(FileRockException):
     pass
@@ -99,6 +102,10 @@ class ProtocolException(FileRockException):
     pass
 
 
+class ExecutionInterrupted(FileRockException):
+    pass
+
+
 class UnexpectedMessageException(ProtocolException):
 
     def __init__(self, message):
@@ -107,7 +114,7 @@ class UnexpectedMessageException(ProtocolException):
     def __str__(self):
         name = self.message.name
         reason = self.message.getParameter('reason')
-        return  "%s, reason: %s" % (name, reason)
+        return "%s, reason: %s" % (name, reason)
 
 
 class ForceStateChange(FileRockException):

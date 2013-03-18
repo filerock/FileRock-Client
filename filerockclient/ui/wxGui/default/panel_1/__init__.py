@@ -55,9 +55,9 @@ from filerockclient.ui.wxGui.constants import IMAGE_PATH, ICON_PATH
 
 DATETIMEFORMAT = "%a %b %d %H:%M:%S %Y"
 STATEBITMAP_PATH = os.path.join(ICON_PATH, 'Status_icons')
-NO_CONNECTION_ROBOT = os.path.join(IMAGE_PATH, "noconnection_robot_200x200.png")
+NO_CONNECTION_ROBOT = os.path.join(IMAGE_PATH, "other/noconnection_robot_200x200.png")
 NO_ALIGNED_STATUS = os.path.join(ICON_PATH, "Status_icons", "NOTALIGNED.png")
-QUESTION_ICON = os.path.join(IMAGE_PATH, "question.png")
+QUESTION_ICON = os.path.join(IMAGE_PATH, "GUI-icons/question.png")
 
 if sys.platform.startswith('darwin'):
     TextCtrl = MywxStaticText
@@ -303,5 +303,5 @@ class Panel1(wx.Panel):
             rect = self.GetUpdateRegion().GetBox()
             dc.SetClippingRect(rect)
         dc.Clear()
-        bmp = self._img('activities_legend.png')
+        bmp = self._img('other/activities_legend.png')
         dc.DrawBitmap(bmp, 0, 0)

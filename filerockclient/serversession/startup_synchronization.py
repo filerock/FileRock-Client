@@ -89,10 +89,11 @@ FileRock Client is licensed under GPLv3 License.
 
 """
 
-import os
 import logging
 from datetime import datetime
+
 from filerockclient.events_queue import PathnameEvent
+from filerockclient.exceptions import ExecutionInterrupted
 
 
 class StartupSynchronization(object):
@@ -126,16 +127,20 @@ class StartupSynchronization(object):
         self.ignored_conflicts = set()
         self.deletion_conflicts = set()
 
-    def prepare(self, storage_content):
+    def prepare(self, storage_content, interruption):
         """
         Step 0: detect offline changes made to both the warebox and
         the remote storage by performing a 3-way diff between the
         warebox, the storage cache and the storage.
         """
         # Collect data
-        last_session_content = self._get_last_session_content()
-        local_content = self._get_local_content()
+        last_session_content = self._get_last_session_content(interruption)
         remote_content = self._get_remote_content(storage_content)
+        # Ignore any pathname in the warebox that is not also in the storage
+        # or in the storage cache. They have nothing to do with sync, are
+        # new pathnames that will be uploaded in R&T
+        filter_on = last_session_content.union(remote_content)
+        local_content = self._get_local_content(filter_on, interruption)
 
 ##        print "Last session content:\n%s" % last_session_content
 ##        print "Local content:\n%s" % local_content
@@ -238,7 +243,7 @@ class StartupSynchronization(object):
         # Note: edit conflicts now are solved by workers when they do the
         # downloads, so this code here has become useless.
 #        self._solve_edit_conflicts(self.edit_conflicts, self.content_to_upload)
-        self._solve_deletion_conflicts(self.deletion_conflicts, self.content_to_delete_locally, self.content_to_upload)
+        #self._solve_deletion_conflicts(self.deletion_conflicts, self.content_to_delete_locally, self.content_to_upload)
 
         # Sort pathnames so to perform operations in the correct order
         ##        self.content_to_upload = sorted(self.content_to_upload)
@@ -258,7 +263,7 @@ class StartupSynchronization(object):
             for pathname in self.content_to_download: self.logger.info(u'    DOWNLOAD %s' % pathname)
             for pathname in self.content_to_delete_locally: self.logger.info(u'    DELETE LOCAL %s' % pathname)
 
-        self._perform_local_deletions(self.content_to_delete_locally)
+        #self._perform_local_deletions(self.content_to_delete_locally)
 
     def generate_downlink_events(self):
         """
@@ -288,44 +293,49 @@ class StartupSynchronization(object):
 ##            else:
 ##                self.events_queue.add(('CREATE', pathname))
 
-    def _get_last_session_content(self):
+    def _get_last_session_content(self, interruption):
         """
         @return the storage cache content.
         """
         content_ = self.storage_cache.get_all_records()
         content = set()
+
         for (pathname, _, _, _, warebox_etag, storage_etag) in content_:
+            if interruption.is_set():
+                raise ExecutionInterrupted()
             content.add(pathname)
             self.last_session_warebox_etag[pathname] = warebox_etag
             self.last_session_storage_etag[pathname] = storage_etag
         return content
 
-    def _get_local_content(self):
+    def _get_local_content(self, filter_on, interruption):
         """
-        @return the warebox content.
+        @param filter_on:
+                    Any pathname that is not also in this set must be
+                    ignored.
+        @param interruption:
+                    An event object telling if someone in the
+                    application has requested this method to interrupt.
+        @return
+                    The warebox content.
         """
-        storage_cache_ = self.storage_cache.get_all_records()
-        storage_cache = dict()
-        for (pathname, _, _, lmtime, warebox_etag, _) in storage_cache_:
-            storage_cache[pathname] = (lmtime, warebox_etag)
-
-        content = set()
-        pathnames = self.warebox.get_content(blacklisted=True)
         self.logger.debug('Starting get local content')
+        content = set()
+        pathnames = self.warebox.get_content(blacklisted=True,
+                                             interruption=interruption)
+        pathnames = set(pathnames).intersection(filter_on)
+
         for pathname in pathnames:
+            if interruption.is_set():
+                raise ExecutionInterrupted()
             try:
                 lmtime = self.warebox.get_last_modification_time(pathname)
                 size = self.warebox.get_size(pathname)
-#                 if pathname in storage_cache and (lmtime == storage_cache[pathname][0]):
-#                     etag = storage_cache[pathname][1]
-#                 else:
-#                     etag = self.warebox.compute_md5_hex(pathname)
                 etag = self.warebox.compute_md5_hex(pathname)
             except Exception as exception:
                 self.logger.warning(
-                    u'Failed reading disk metadata for pathname %s. Skipped.' +
-                    u' Reason: %s'
-                    % (repr(pathname)), exception)
+                    u'Failed reading disk metadata for pathname %r.'
+                    ' Skipped. Reason: %s' % (pathname, exception))
                 continue
             content.add(pathname)
             self.local_size[pathname] = size
@@ -450,131 +460,6 @@ class StartupSynchronization(object):
         for pathname in content_to_delete_locally:
             conflicts.update(set(filter(lambda p: p.startswith(pathname), content_to_upload)))
         return conflicts
-
-    def _find_new_name(self, pathname):
-        # TODO: try harder in finding a name that is available
-        curr_time = datetime.now().strftime('%Y-%m-%d %H_%M_%S')
-        suffix = ' (Conflicted on %s)' % curr_time
-        if pathname.endswith('/'):
-            new_pathname = pathname[:-1] + suffix + '/'
-        else:
-            basename, ext = os.path.splitext(pathname)
-            new_pathname = basename + suffix + ext
-        return new_pathname
-
-    def _rename_conflicting_pathname(self, pathname, prefix=None):
-#        new_pathname = self._find_new_name(pathname)
-        new_pathname = self.warebox.rename(pathname, pathname, prefix)
-        return new_pathname
-
-    def _solve_edit_conflicts(self, conflicts, content_to_upload):
-        """Solve edit conflicts by renaming the local file to a new
-        pathname, so to leave room for downloading the storage version.
-
-        Side effect on content_to_upload to add the renamed files.
-        """
-        try:
-            for pathname in conflicts:
-                new_pathname = self._rename_conflicting_pathname(pathname)
-                content_to_upload.add(new_pathname)
-                self.logger.warning(u"Conflict detected for pathname %s, which"
-                                    " has been remotely updated. Moved the"
-                                    " local copy to: %s" %
-                                    (pathname, new_pathname))
-        except OSError:
-            self.logger.error(u"Caught an operating system exception while"
-                              " modifying the filesystem. Are you locking"
-                              " the Warebox?")
-            raise
-
-    def _solve_deletion_conflicts(self,
-                     conflicts, content_to_delete_locally, content_to_upload):
-        """Solve deletion conflicts by renaming the local file to a new
-        pathname. The old pathname will result implicitly deleted.
-
-        Side effect on Content_to_upload to add the renamed files.
-
-        Deletion conflicts are tough to resolve. A conflicting pathname:
-        a) has been deleted by the server
-        b) has an ancestor folder that has been deleted by the server
-        c) both
-        It must be checked if it's safe leaving the file in its original
-        folder (that is, if it still exists).
-        """
-        try:
-            backupped_folders = {}
-            for pathname in conflicts:
-                missing_ancestor_folders = filter(lambda p: pathname.startswith(p), content_to_delete_locally)
-                # Is it safe leaving the file in its original folder?
-                if len(missing_ancestor_folders) > 0:
-                    # No, it's been deleted. Backup the whole deleted subtree
-                    missing_ancestor_folders = sorted(missing_ancestor_folders)
-                    highest_missing_folder = missing_ancestor_folders[0]
-                    if not highest_missing_folder in backupped_folders:
-                        backup_folder = self._find_new_name(highest_missing_folder)
-                        self.warebox.make_directory(backup_folder)
-                        backupped_folders[highest_missing_folder] = backup_folder
-                    backup_folder = backupped_folders[highest_missing_folder]
-                    new_pathname = pathname.replace(highest_missing_folder, backup_folder, 1)
-                    self.warebox.make_directories_to(new_pathname)
-                    if not self.warebox.is_directory(new_pathname):
-                        self.warebox.rename(pathname, new_pathname)
-                else:
-                    # Yes, just rename the file
-                    new_pathname = self._rename_conflicting_pathname(pathname, 'Deleted')
-                    content_to_upload.add(new_pathname)
-                    self.logger.warning(
-                        u"Conflict detected for pathname %r, which has been "
-                        u"remotely deleted. Moved the local copy to: %r"
-                            % (pathname, new_pathname))
-            # Update content_to_upload with the backupped subtrees
-            for folder, backup_folder in backupped_folders.iteritems():
-                self.logger.warning(
-                    u"Conflict detected for folder %r, which has been remotely "
-                    u"deleted. Moved its content to: %r"
-                        % (folder, backup_folder))
-                content = self.warebox.get_content(backup_folder)
-                for pathname in content:
-                    self.logger.warning(u"    %r" % pathname)
-                    content_to_upload.add(pathname)
-                content_to_upload.add(backup_folder)
-        except OSError:
-            self.logger.error(
-                u"Caught an operating system exception while modifying the "
-                u"filesystem. Are you locking the Warebox?")
-            raise
-
-    def _perform_local_deletions(self, content_to_delete_locally):
-        """Deletes from the filesystem pathnames that have been remotely
-        deleted from the storage.
-
-        Note: This is an ugly hack, since this kind of actions should be
-        performed by some type of Worker. I choose to do so since I
-        already had to for local renames, which haven't a representation
-        as pathname states in the state machine (although it existed the RN,
-        Remotely Deleted, state).
-        Some refactoring should remove this method from here and just use
-        the state machine to produce proper PathnameOperation objects.
-        """
-        roots = {}
-        for pathname in reversed(content_to_delete_locally):
-            found_ancestor = False
-            for root in roots:
-                if pathname.startswith(root):
-                    found_ancestor = True
-                    break
-            if not found_ancestor:
-                roots[pathname] = True
-
-        try:
-            for pathname in roots.iterkeys():
-                self.warebox.delete_tree(pathname)
-        except Exception as e:
-            self.logger.error(
-                u"Caught an operating system exception while "
-                u"modifying the filesystem. Are you locking the Warebox? % r"
-                % e)
-            raise
 
 
 if __name__ == '__main__':

@@ -54,7 +54,7 @@ import distutils.dir_util
 import shutil
 from StringIO import StringIO
 
-from filerockclient.exceptions import FileRockException
+from filerockclient.exceptions import FileRockException, ExecutionInterrupted
 from filerockclient.databases.warebox_cache import WareboxCache
 from filerockclient.blacklist.blacklist import Blacklist
 from filerockclient.blacklist.blacklisted_expressions import \
@@ -413,10 +413,15 @@ class Warebox(object):
             os.path.exists(self.absolute_pathname(rel_pathname)) and \
             stat.S_ISREG(os.stat(self.absolute_pathname(rel_pathname)).st_mode)
 
+    def _check_interruption(self, interruption):
+        if interruption is not None and interruption.is_set():
+            raise ExecutionInterrupted()
+
     def get_content(self,
                     folder=u'',
                     recursive=True,
-                    blacklisted=True):
+                    blacklisted=True,
+                    interruption=None):
         """Get the list of pathnames contained in the given folder.
 
         If "folder" is omitted than a list of the whole Warebox is
@@ -433,27 +438,27 @@ class Warebox(object):
         @return
                     List of pathnames.
         """
-        # first_occur=True
         pathnames = []
-        pathnames_set = set()
         abs_folder = self.absolute_pathname(folder)
+
         for curr_folder, contained_folders, contained_files in os.walk(abs_folder):
+            self._check_interruption(interruption)
             folders_to_not_walk_into = []
             prefix = os.path.relpath(curr_folder, self._warebox_path)
             if prefix == u'.':
                 prefix = u''
             for a_folder in contained_folders:
+                self._check_interruption(interruption)
                 _a_folder = os.path.join(prefix, a_folder)
                 _a_folder = _a_folder.replace('\\', '/')  # Damn Windows
                 _a_folder += '/' if not _a_folder.endswith('/') else ''
                 if not blacklisted or not self.is_blacklisted(_a_folder):
                     pathnames.append(_a_folder)
-                    pathnames_set.add(_a_folder)
                 else:
                     folders_to_not_walk_into.append(a_folder)
 
                 # It seems that get_content() can return non-unicode pathnames.
-                # This guard checks it.
+                # This guard checks against it.
                 self._assert_unicode(
                     _a_folder, self._warebox_path, folder,
                     abs_folder, prefix, a_folder)
@@ -462,22 +467,23 @@ class Warebox(object):
                 contained_folders.remove(folder)
 
             for a_file in contained_files:
+                self._check_interruption(interruption)
                 _a_file = os.path.join(prefix, a_file)
                 _a_file = _a_file.replace('\\', '/')  # Damn Windows
                 if self._can_i_add_this_file(blacklisted, _a_file):
                     pathnames.append(_a_file)
-                    pathnames_set.add(_a_file)
 
                 # It seems that get_content() can return non-unicode pathnames.
                 # This guard checks it.
                 self._assert_unicode(
                     _a_file, self._warebox_path, folder,
                     abs_folder, prefix, a_file)
+
             if not recursive:
                 break
 
         all_pathnames = set(self.cache.get_all_keys())
-        self.cache.delete_records(all_pathnames.difference(pathnames_set))
+        self.cache.delete_records(all_pathnames.difference(set(pathnames)))
         return pathnames
 
     def get_size(self, pathname):

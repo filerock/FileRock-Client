@@ -76,6 +76,10 @@ class StorageCache(AbstractCache):
         Returns either the list of tuples or False on error.
 
         The row is represented as a tuple containing the values of columns
+
+        @return: a list of tuples each tuple contains
+                (pathname, warebox_size, storage_size,
+                lmtime, warebox_etag, storage_etag)
         """
         records = AbstractCache.get_all_records(self)
         result = []

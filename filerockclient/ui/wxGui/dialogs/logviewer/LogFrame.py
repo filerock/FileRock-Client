@@ -74,7 +74,7 @@ class LogFrame(wx.Frame):
         # begin wxGlade: LogFrame.__set_properties
         self.SetTitle(Messages.LOG_DIALOG_TITLE)
         _icon = wx.EmptyIcon()
-        pathname = os.path.join(IMAGE_PATH, "FileRock.ico")
+        pathname = os.path.join(IMAGE_PATH, "other/FileRock.ico")
         _icon.CopyFromBitmap(wx.Bitmap(pathname, wx.BITMAP_TYPE_ICO))
         self.SetIcon(_icon)
         self.SetSize((750, 550))

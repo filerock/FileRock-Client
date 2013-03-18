@@ -41,73 +41,70 @@ FileRock Client is licensed under GPLv3 License.
 # or that needs to be overridable by configuration - use the config module
 # for that.
 
-import sys, os, platform
-
+import sys
+import os
+import platform
 
 try:
     # The "build_specs" module is automatically generated (and deleted)
     # by the build/deploy scripts; its existence tells us we are running
-    # an installed instance of the client.
-    # Notice that, even if BuildVersion module is present, client might
-    # still be running from source (e.g. packaged by a linux  maintainer,
-    # or installed via distutils setup.py script).
-    # To avoid ambiguity, refer to RUNNING_FROM_SOURCE constant to determine
-    # if the client is effectively running from a frozen or a source version
+    # an installed instance of the client (that is, not directly from
+    # sources).
+    # Known ways to get an installed application:
+    #   - You have downloaded a frozen bundle from our website
+    #   - You have installed through the setup.py script
+    #   - You have installed through your OS package manager
+    #     (@Maintainers: yes, it's you).
     import filerockclient.build_specs
     RUNNING_INSTALLED = True
 except ImportError:
     RUNNING_INSTALLED = False
 
-
-
-RUNNING_FROM_SOURCE = not hasattr(sys, 'frozen')
-
-IS_WINDOWS = sys.platform.startswith('win')
-IS_LINUX = sys.platform.startswith('linux')
-IS_DARWIN = sys.platform.startswith('darwin')
-
-IS_64BITS = sys.maxsize > 2**32
-
-IS_PYTHON_27 = (platform.python_version_tuple()[0:2] == ('2','7'))
-
-
-# MAINTAINERS SHOULD SET EXECUTABLE_PATH, COMMAND_LINE_ARGUMENTS & VERSION
-# CONSTANTS PROPERLY inside filerockclient/build_specs.py module
 try:
+    # The build_specs module, if present, must specify the current version
+    from filerockclient.build_specs import VERSION
+except ImportError:
+    VERSION = 'trunk'
+
+# @Maintainers: remember that FileRock Client is able to restart itself.
+# It usually auto-detects all needed values, however you can force
+# in the filerockclient.build_specs module the following (optional) values:
+#   EXECUTABLE_PATH, COMMAND_LINE_ARGUMENTS.
+try:
+    # This should be a string, representing the executable to launch the client
     from filerockclient.build_specs import EXECUTABLE_PATH
 except ImportError:
-    # This should be a string, representing the executable to launch the client
     EXECUTABLE_PATH = None
 
-# This should be a list of string, representing command line arguments
 try:
+    # This should be a list of string, representing command line arguments
     from filerockclient.build_specs import COMMAND_LINE_ARGUMENTS
 except ImportError:
     COMMAND_LINE_ARGUMENTS = None
 
 
-try:
-    from filerockclient.build_specs import VERSION
-except ImportError:
-    VERSION = 'trunk'
+# Please set both EXECUTABLE_PATH and COMMAND_LINE_ARGUMENTS or none of them
+assert (EXECUTABLE_PATH is None and COMMAND_LINE_ARGUMENTS is None) or \
+       (EXECUTABLE_PATH is not None and COMMAND_LINE_ARGUMENTS is not None)
 
-
-# Please set both of EXECUTABLE_PATH and COMMAND_LINE_ARGUMENTS
-# or neither of them
-assert  (EXECUTABLE_PATH is None and COMMAND_LINE_ARGUMENTS is None) or \
-        (EXECUTABLE_PATH is not None and COMMAND_LINE_ARGUMENTS is not None)
-
-
+RUNNING_FROM_SOURCE = not hasattr(sys, 'frozen')
+IS_WINDOWS = sys.platform.startswith('win')
+IS_LINUX = sys.platform.startswith('linux')
+IS_DARWIN = sys.platform.startswith('darwin')
+IS_64BITS = sys.maxsize > 2 ** 32
+IS_PYTHON_27 = (platform.python_version_tuple()[0:2] == ('2', '7'))
 
 
 def get_command_line():
-    """
-    YOU SHOULD REALLY REALLY WRITE ME
+    """Return the command line which the application has been invoked
+    with, as a list of strings.
+
+    The result can be used with the os.exec* functions.
     """
 
     def get_commandline_args():
-        """Returns the list of command line arguments which the client has
-        been invoked with.
+        """Nested function. Returns the list of command line arguments
+        which the client has been invoked with.
 
         The first argument is the main script name, if the application is
         run from sources (that is, through the Python interpreter).
@@ -132,10 +129,9 @@ def get_command_line():
             # strip the first argument (python script)
             return sys.argv[1:]
 
-
     def get_executable_path():
-        """Returns the absolute filesystem path of the executable launched
-        to run the client.
+        """Nested function. Returns the absolute filesystem path of the
+        executable launched to run the client.
 
         It's the Python interpreter when the application is run from
         sources, while it's the binary executable for a frozen application.
@@ -145,7 +141,7 @@ def get_command_line():
             return EXECUTABLE_PATH
 
         if IS_WINDOWS or IS_LINUX:
-            # sys.executable is correctly set in both source and frozen run modes
+            # sys.executable is correctly set in both source and frozen modes
             return sys.executable
 
         elif IS_DARWIN:
@@ -162,13 +158,18 @@ def get_command_line():
                     "FileRock"
                 )
 
-    
+    # Produce the final command line
     if IS_DARWIN and RUNNING_FROM_SOURCE:
-        # When running on OS X from source, force execution of 32bit interpreter
-        return ['/usr/bin/env', 'arch', '-i386', get_executable_path()] + get_commandline_args()
+        # On OSX most distributions of Python are universal binaries,containing
+        # both the 32bit and 64bit executables. The default is 64bit and thus
+        # we need to force the 32bit version of the interpreter, due to the
+        # lack of a 64bit distribution of wxPython for OSX.
+        cmdline = ['/usr/bin/env', 'arch', '-i386', get_executable_path()]
+        cmdline += get_commandline_args()
     else:
-        return [get_executable_path()] + get_commandline_args()
-        
+        cmdline = [get_executable_path()] + get_commandline_args()
+
+    return cmdline
 
 
 if __name__ == '__main__':

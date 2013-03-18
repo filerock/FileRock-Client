@@ -60,7 +60,7 @@ class ListDialog(wx.Dialog):
         # begin wxGlade: ListDialog.__init__
         kwds["style"] = wx.DEFAULT_DIALOG_STYLE|wx.RESIZE_BORDER|wx.MAXIMIZE_BOX|wx.THICK_FRAME
         wx.Dialog.__init__(self, parent, *args, **kwds)
-        pathname = os.path.join(IMAGE_PATH, "stop-64.png")
+        pathname = os.path.join(IMAGE_PATH, "GUI-icons/stop-64.png")
         self.bitmap_1 = wx.StaticBitmap(self, -1, wx.Bitmap(pathname, wx.BITMAP_TYPE_PNG))
         self.message_label = wx.StaticText(self, -1, "Basis Mismatch")
         self.list_ctrl = wx.TextCtrl(self, -1, "", style=wx.TE_MULTILINE|wx.TE_READONLY)

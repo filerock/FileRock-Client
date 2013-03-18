@@ -64,12 +64,12 @@ class SyncDialog(wx.Dialog):
         # begin wxGlade: SyncDialog.__init__
         kwds["style"] = wx.DEFAULT_DIALOG_STYLE|wx.RESIZE_BORDER|wx.MAXIMIZE_BOX|wx.THICK_FRAME
         wx.Dialog.__init__(self, *args, **kwds)
-        self.bitmap_1 = wx.StaticBitmap(self, -1, wx.Bitmap(os.path.join(IMAGE_PATH, "stop-64.png"), wx.BITMAP_TYPE_PNG))
+        self.bitmap_1 = wx.StaticBitmap(self, -1, wx.Bitmap(os.path.join(IMAGE_PATH, "GUI-icons/stop-64.png"), wx.BITMAP_TYPE_PNG))
         self.message_label = wx.StaticText(self, -1, "Basis Mismatch")
-        self.bitmap_button_1 = wx.BitmapButton(self, -1, wx.Bitmap(os.path.join(IMAGE_PATH, "question.png"), wx.BITMAP_TYPE_PNG), style=wx.NO_BORDER)
-        self.robohash_from_bitmap = wx.StaticBitmap(self, -1, wx.Bitmap(os.path.join(IMAGE_PATH, "noconnection_robot_100x100.png"), wx.BITMAP_TYPE_PNG))
-        self.bitmap_4 = wx.StaticBitmap(self, -1, wx.Bitmap(os.path.join(IMAGE_PATH, "change-to.png"), wx.BITMAP_TYPE_PNG))
-        self.robohash_to_bitmap = wx.StaticBitmap(self, -1, wx.Bitmap(os.path.join(IMAGE_PATH, "noconnection_robot_100x100.png"), wx.BITMAP_TYPE_PNG))
+        self.bitmap_button_1 = wx.BitmapButton(self, -1, wx.Bitmap(os.path.join(IMAGE_PATH, "GUI-icons/question.png"), wx.BITMAP_TYPE_PNG), style=wx.NO_BORDER)
+        self.robohash_from_bitmap = wx.StaticBitmap(self, -1, wx.Bitmap(os.path.join(IMAGE_PATH, "other/noconnection_robot_100x100.png"), wx.BITMAP_TYPE_PNG))
+        self.bitmap_4 = wx.StaticBitmap(self, -1, wx.Bitmap(os.path.join(IMAGE_PATH, "GUI-icons/change-to.png"), wx.BITMAP_TYPE_PNG))
+        self.robohash_to_bitmap = wx.StaticBitmap(self, -1, wx.Bitmap(os.path.join(IMAGE_PATH, "other/noconnection_robot_100x100.png"), wx.BITMAP_TYPE_PNG))
 
         self.__set_properties()
         self.__do_layout()
@@ -98,7 +98,7 @@ class SyncDialog(wx.Dialog):
         # begin wxGlade: SyncDialog.__set_properties
         self.SetTitle(Messages.SYNC_DIALOG_TITLE)
         _icon = wx.EmptyIcon()
-        pathname = os.path.join(IMAGE_PATH, "FileRock.ico")
+        pathname = os.path.join(IMAGE_PATH, "other/FileRock.ico")
         _icon.CopyFromBitmap(wx.Bitmap(pathname, wx.BITMAP_TYPE_ICO))
         self.SetIcon(_icon)
         self.SetSize((700, 560))

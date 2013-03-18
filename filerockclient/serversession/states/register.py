@@ -72,16 +72,18 @@ class StateRegister(object):
         cls.instances = {}
         cls.session = session
         import filerockclient.serversession.states.pre_authentication
-        import filerockclient.serversession.states.sync
+        import filerockclient.serversession.states.sync_diff
+        import filerockclient.serversession.states.sync_download
         import filerockclient.serversession.states.replication_and_transfer
         import filerockclient.serversession.states.commit
-        import filerockclient.serversession.states.basismismatch
+        import filerockclient.serversession.states.integrity_error
         cls.phases = [
             filerockclient.serversession.states.pre_authentication,
-            filerockclient.serversession.states.sync,
+            filerockclient.serversession.states.sync_diff,
+            filerockclient.serversession.states.sync_download,
             filerockclient.serversession.states.replication_and_transfer,
             filerockclient.serversession.states.commit,
-            filerockclient.serversession.states.basismismatch
+            filerockclient.serversession.states.integrity_error
         ]
 
     @classmethod

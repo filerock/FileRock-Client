@@ -28,8 +28,6 @@
 This is the main module.
 
 
-
-
 ----
 
 This module is part of the FileRock Client.
@@ -41,18 +39,16 @@ FileRock Client is licensed under GPLv3 License.
 """
 
 from filerockclient.constants import get_command_line, \
-                                     IS_DARWIN, \
-                                     IS_PYTHON_27, \
-                                     IS_64BITS
+                                     IS_DARWIN, IS_PYTHON_27, IS_64BITS
 
-assert IS_PYTHON_27 , "Python 2.7 required"  
-assert not (IS_DARWIN and IS_64BITS) , "Python 2.7 32bit required on OSX"    
+assert IS_PYTHON_27, "Python 2.7 required"
+assert not (IS_DARWIN and IS_64BITS), "Python 2.7 32bit required on OSX"
 
 import os
-import sys
 import argparse
 from multiprocessing import freeze_support
 from filerockclient.application import Application
+
 
 def main():
     freeze_support()
@@ -97,11 +93,6 @@ def main():
         help='Enable develop mode', action='store_true')
 
     parser.add_argument(
-        '-e', '--executable',
-        dest='executable', help='Executable file name', default=None,
-        metavar='<executable name>')
-
-    parser.add_argument(
         '--restart-count',
         dest='restartcount', help='Internal use', type=int, default=0,
         metavar="<restart count>")
@@ -109,28 +100,10 @@ def main():
     # Just parse known options
     args, _ = parser.parse_known_args()
 
-    # On some OSX installations sys.executable isn't reliable. It doesn't seem
-    # to return the executable filename that was actually launched. A comment
-    # in Python's source code states that when Python is installed as an "app
-    # bundle" argv[0] doesn't return the correct executed pathname. Maybe it's
-    # related to our problem. As a patch, we accept the executable pathname as
-    # a command line parameter. Damn OSX.
-    #if args.executable is not None:
-    #    executable_name = args.executable
-    #else:
-    #    executable_name = get_executable_path()
-
-    main_script = 'FileRock.py'
-
-    # Sets the current working directory to dirname(sys.executable)
-    # (Fix for all packaged clients except darwin)
-    #if hasattr(sys, 'frozen') and not sys.platform.startswith('darwin'):
-    #    os.chdir(os.path.dirname(os.path.realpath(sys.executable)))
-
     application = Application(
         args.develop, args.bugreport, args.configdir, args.startupslides,
         args.restartcount, args.showpanel, args.interface, get_command_line(),
-        main_script)
+        'filerock.py')
 
     application.main_loop()
 

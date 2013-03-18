@@ -50,25 +50,22 @@ import os
 import re
 
 from FileRockSharedLibraries.Communication.Messages import \
-    SYNC_DONE, SYNC_GET_REQUEST, SYNC_GET_ENCRYPTED_FILES_IVS
-
+    SYNC_GET_ENCRYPTED_FILES_IVS
 from filerockclient.interfaces import GStatuses, PStatuses
 from filerockclient.util.utilities import format_to_log, get_hash
 from filerockclient.exceptions import *
 from filerockclient.workers.filters.encryption import \
     utils as CryptoUtils, helpers as CryptoHelpers
-from filerockclient.serversession.commands import Command
 from filerockclient.serversession.states.abstract import ServerSessionState
 from filerockclient.serversession.states.register import StateRegister
-from filerockclient.util import multi_queue
 from filerockclient.databases import metadata
 
 
 def remove_lmtime_from_filelist(filelist):
     obj = [{u'etag': entry['etag'],
-             u'key': entry['key'],
-             u'size': entry['size']}
-            for entry in filelist]
+            u'key': entry['key'],
+            u'size': entry['size']}
+           for entry in filelist]
     return obj
 
 
@@ -95,7 +92,7 @@ class SyncStartState(ServerSessionState):
                 socket.gethostbyname(self._context.storage_hostname)
         except socket.error as e:
             raise Exception("Error while resolving storage hostname %s: %s"
-            % (self._context.storage_hostname, e))
+                            % (self._context.storage_hostname, e))
         ip = self._context.storage_ip_address
         self.logger.debug("Starting storage IP address: %s" % ip)
 
@@ -127,7 +124,7 @@ class SyncStartState(ServerSessionState):
             # Validate the format of the etag
             if not valid_md5.match(record['etag']):
                 raise ProtocolException("Invalid etag for pathname '%r': %r"
-                    % (record['key'], record['etag']))
+                                        % (record['key'], record['etag']))
 
         #self.logger.debug(u'End of content received from the server.')
 
@@ -183,7 +180,14 @@ class SyncStartState(ServerSessionState):
 
         # Detect actions to be taken for synchronization as well as conflicts
         self.logger.debug(u"Starting computing the three-way diff...")
-        self._context.startup_synchronization.prepare(storage_content)
+        try:
+            self._context.startup_synchronization.prepare(
+                                                    storage_content,
+                                                    self._context.must_die)
+        except ExecutionInterrupted:
+            self.logger.debug(u'ExecutionInterrupted, terminating...')
+            self._set_next_state(StateRegister.get('DisconnectedState'))
+            return
         self.logger.debug(u"Finished computing the three-way diff.")
 
         # Conflicts on encrypted files need extra data from the server to be
@@ -207,8 +211,8 @@ class SyncStartState(ServerSessionState):
 #                self._internal_facade.terminate()
                 self._context._internal_facade.pause()
         except HashMismatchException as excp:
-            self.logger.critical('BASISMISMATCH %s' % excp)
-            self._set_next_state(StateRegister.get('BasisMismatchState'))
+            self.logger.critical('Integrity error %s' % excp)
+            self._set_next_state(StateRegister.get('IntegrityErrorState'))
 
     def _check_hash_mismatch(self):
         """Handles the hash mismatch, if any.
@@ -394,7 +398,7 @@ class SyncStartState(ServerSessionState):
         self._context._internal_facade.set_global_status(GStatuses.C_NOTALIGNED)
         self._context.startup_synchronization.execute()
         self._context.startup_synchronization.generate_downlink_events()
-        self._set_next_state(StateRegister.get('SyncDownloadingLeavesState'))
+        self._set_next_state(StateRegister.get('ResolvingDeletionConflictsState'))
 
     def _conflicted_pathname(self, pathname):
         # TODO: try harder in finding a name that is available
@@ -523,14 +527,25 @@ class SyncStartState(ServerSessionState):
                 lambda key: server_ivs[key] is not None, server_ivs
             )
         }
-        encrypted_etags = CryptoHelpers.recalc_encrypted_etag(
-            server_ivs_notNone, self._context.warebox, self._context.cfg)
-        self.logger.debug(u"Finished recomputing the etag for encrypted conflicted pathnames.")
-        self.logger.debug('IVs received from server\n %r' % server_ivs)
-        self.logger.debug('IVs NotNone\n %r' % server_ivs_notNone)
-        self.logger.debug('encrypted Etag\n %r' % encrypted_etags)
-        self.logger.debug('Remote Etag\n %r' % self._context.startup_synchronization.remote_etag)
-        self._context.startup_synchronization.update_conflicts_of_encrypted_pathnames(encrypted_etags)
+
+        try:
+            self.logger.debug("I'm going to recalculate all encrypted etags")
+            enc_etags = CryptoHelpers.recalc_encrypted_etag(
+                                                    server_ivs_notNone,
+                                                    self._context.warebox,
+                                                    self._context.cfg,
+                                                    self._context.must_die)
+            self.logger.debug("Encrypted etags recalculated")
+        except ExecutionInterrupted:
+            self.logger.debug(u'ExecutionInterrupted, terminating...')
+            self._set_next_state(StateRegister.get('DisconnectedState'))
+            return
+        #self.logger.debug(u"Finished recomputing the etag for encrypted conflicted pathnames.")
+        #self.logger.debug('IVs received from server\n %r' % server_ivs)
+        #self.logger.debug('IVs NotNone\n %r' % server_ivs_notNone)
+        #self.logger.debug('encrypted Etag\n %r' % enc_etags)
+        #self.logger.debug('Remote Etag\n %r' % self._context.startup_synchronization.remote_etag)
+        self._context.startup_synchronization.update_conflicts_of_encrypted_pathnames(enc_etags)
 
         try:
             if self._check_hash_mismatch():
@@ -539,388 +554,8 @@ class SyncStartState(ServerSessionState):
 #                self._internal_facade.terminate()
                 self._context._internal_facade.pause()
         except HashMismatchException as excp:
-            self.logger.critical('BASISMISMATCH %s' % excp)
-            self._set_next_state(StateRegister.get('BasisMismatchState'))
-
-
-def sync_on_operation_rejected(operation):
-    """Called by a worker that couldn't complete an operation.
-
-    Note: the calling thread is the worker's one, not ServerSession's.
-    """
-    # TODO: try to reset just the session instead of the whole client.
-    raise Exception("operation rejected")
-
-
-def sync_on_operation_authorized(state, message):
-    """An operation has been authorized by the server, let's send it
-    to the workers.
-    """
-    #state.logger.debug(u"Received declare response: %s", message)
-    op_id = state._context._pathname2id[message.getParameter('pathname')]
-    state._context.transaction.authorize_operation(op_id)
-    operation = state._context.transaction.get_operation(op_id)
-    operation.download_info = {}
-    operation.download_info['bucket'] = message.getParameter('bucket')
-    operation.download_info['auth_token'] = message.getParameter('auth_token')
-    operation.download_info['auth_date'] = message.getParameter('auth_date')
-    operation.download_info['remote_ip_address'] = state._context.storage_ip_address
-    state._context.worker_pool.send_operation(operation)
-
-
-def on_download_integrity_error(state, command):
-    operation = command.operation
-    bad_etag = command.bad_etag
-    state.logger.critical(
-            u"Detected an integrity error while downloading pathname %s. "
-            "Expected etag %s but %s has been found."
-            % (operation.pathname, operation.storage_etag, bad_etag))
-    state._set_next_state(StateRegister.get('BasisMismatchState'))
-
-
-class AbstractSyncDownloadingState(ServerSessionState):
-    """Abstraction of the states that perform download operations.
-
-    For efficiency reasons the download operations are partitioned into
-    two groups: leaves and internal operations, referring to leaves and
-    internal nodes of the filesystem tree. The two states are very
-    similar, so this state abstracts the common logic.
-
-    Note: leaves are served before internal operations.
-    """
-    accepted_messages = ServerSessionState.accepted_messages + \
-        ['SYNC_GET_RESPONSE']
-
-    def __init__(self, session):
-        ServerSessionState.__init__(self, session)
-        self._listening_operations = True
-
-    def _on_entering(self):
-        """Keep serving operations while there are available workers.
-        """
-        if self._context.worker_pool.exist_free_workers():
-            self._listening_operations = True
-
-    def _handle_command_WORKERFREE(self, command):
-        """A worker is available to serve more operations.
-        """
-        self._listening_operations = True
-
-    def _receive_next_message(self):
-        """All kind of events are received. Operations are received only
-        if there are available workers.
-        """
-        queues = [
-            'usercommand', 'sessioncommand',
-            'systemcommand', 'servermessage'
-        ]
-        if self._listening_operations:
-            queues.append('operation')
-        return self._context._input_queue.get(queues)
-
-    def _handle_operation(self, operation):
-        """Handle the given operation.
-        """
-        if operation == 'OPERATIONSFINISHED':
-            cmd = Command('OPERATIONSFINISHED')
-            self._context._input_queue.put(cmd, 'sessioncommand')
-            return
-
-        if operation.verb == 'DOWNLOAD' and not operation.is_directory():
-            if not self._context.worker_pool.acquire_worker():
-                raise FileRockException(
-                    u"Concurrency trouble in %s: could not acquire a worker"
-                    " although some should have been available"
-                    % (self.__class__.__name__ + "._handle_file_operation"))
-            if not self._context.worker_pool.exist_free_workers():
-                self._listening_operations = False
-
-        operation.is_leaf = self._is_serving_leaves()
-        self._handle_file_operation(operation)
-
-    def _is_serving_leaves(self):
-        """Tell whether we are serving leaves or internal operations.
-
-        To be overridden in the subclasses.
-        """
-        pass
-
-    def _handle_file_operation(self, operation):
-        """Handle the given operation.
-
-        Download operations need an authorization token from the server,
-        while local deletion can be directly sent to workers.
-        """
-        if operation.verb != 'DOWNLOAD':
-            raise Exception("Unexpected operation verb while in state %s: %s"
-                % (self.__class__.__name__, operation))
-        self.logger.info(u'Synchronizing pathname: %s "%s"'
-            % (operation.verb, operation.pathname))
-        operation.register_reject_handler(sync_on_operation_rejected)
-        CryptoUtils.prepare_operation(operation, self._context.temp_dir)
-        op_id = self._next_id()
-        self._context._pathname2id[operation.pathname] = op_id
-        self._context.transaction.add_operation(op_id, operation)
-        if operation.is_leaf:
-            request = SYNC_GET_REQUEST(
-                "SYNC_GET_REQUEST",
-                {'pathname': operation.pathname})
-            #self.logger.debug(u"Produced Request message: %s", request)
-            self._context.output_message_queue.put(request)
-        else:
-            self._context.transaction.authorize_operation(op_id)
-            self._context.worker_pool.send_operation(operation)
-
-    def _handle_message_SYNC_GET_RESPONSE(self, message):
-        """Received a reply from the server on a download operation
-        we have declared.
-        """
-        sync_on_operation_authorized(self, message)
-
-    def _handle_command_INTEGRITYERRORONDOWNLOAD(self, command):
-        on_download_integrity_error(self, command)
-
-    def _next_id(self):
-        """Get the next operation ID.
-
-        Each operation is assigned a numeric identifier.
-        """
-        self._context.id += 1
-        if self._context.id > 999999:
-            self._context.id = 1
-        return self._context.id
-
-
-class SyncDownloadingLeavesState(AbstractSyncDownloadingState):
-    """Synchronizing pathnames corresponding to leaves operations.
-    """
-
-    def _on_entering(self):
-        """All operations to be executed in the sync phase are in the
-        input queue, waiting to being served. Collect them and split
-        them into leaves and internal operations.
-
-        Precondition: the operations coming from the queue are
-        alphabetically sorted by pathname.
-        """
-        AbstractSyncDownloadingState._on_entering(self)
-
-        self._context._pathname2id = {}
-        operations = []
-
-        while True:
-            try:
-                op, _ = self._context._input_queue.get(['operation'], blocking=False)
-            except multi_queue.Empty:
-                break
-            self.logger.debug(u"Received file operation: %s", op)
-            operations.append(op)
-
-        def is_leaf(op, i):
-            """A "leaf operation" refers to a pathname that is leaf in
-            the filesystem They are served before the others (i.e. the
-            "internal operations").
-            """
-            return \
-                not op.pathname.endswith('/') or \
-                i == len(operations) - 1 or \
-                not operations[i + 1].pathname.startswith(op.pathname)
-
-        leaves = []
-        internals = []
-
-        for i, op in enumerate(operations):
-            (leaves if is_leaf(op, i) else internals).append(op)
-
-        for operation in leaves:
-            self._context._input_queue.put(operation, 'operation')
-        self._context._input_queue.put('OPERATIONSFINISHED', 'operation')
-
-        for operation in internals:
-            self._context._input_queue.put(operation, 'operation')
-        self._context._input_queue.put('OPERATIONSFINISHED', 'operation')
-
-    def _is_serving_leaves(self):
-        return True
-
-    def _handle_command_OPERATIONSFINISHED(self, command):
-        """Receiving this command means that all the leaves operations
-        have been served. Wait until all of them are complete, then pass
-        serving the internal operations.
-        """
-        self._set_next_state(StateRegister.get('SyncWaitingForCompletionState'))
-        cmd = Command('GOTOONCOMPLETION')
-        cmd.next_state = 'SyncDownloadingInternalsState'
-        self._context._input_queue.put(cmd, 'sessioncommand')
-
-
-class SyncDownloadingInternalsState(AbstractSyncDownloadingState):
-    """Synchronizing pathnames corresponding to internal operations.
-    """
-
-    def _is_serving_leaves(self):
-        return False
-
-    def _handle_command_OPERATIONSFINISHED(self, command):
-        """Receiving this command means that all the internal operations
-        have been served. Wait until all of them are complete.
-        """
-        self._set_next_state(StateRegister.get('SyncWaitingForCompletionState'))
-        cmd = Command('GOTOONCOMPLETION')
-        cmd.next_state = 'SyncDoneState'
-        self._context._input_queue.put(cmd, 'sessioncommand')
-
-
-class SyncWaitingForCompletionState(ServerSessionState):
-    """Waiting for completion of the operation currently under work.
-
-    ServerSession waits to finish the current operations before to
-    start fetching more.
-    """
-    accepted_messages = ServerSessionState.accepted_messages + \
-        ['SYNC_GET_RESPONSE']
-
-    def __init__(self, session):
-        ServerSessionState.__init__(self, session)
-        self._registered_operations = []
-        self._next_state = None
-
-    def _on_entering(self):
-        """Register an abort handler on the current operations, we need
-        to know whether some of them gets aborted.
-        """
-        command, _ = self._context._input_queue.get(['sessioncommand'])
-        assert command.name == 'GOTOONCOMPLETION'
-        self._next_state = command.next_state
-
-        if self._context.transaction_manager.all_operations_are_authorized():
-            self._pass_to_next_state()
-
-    def _handle_message_SYNC_GET_RESPONSE(self, message):
-        """Received a reply from the server on a download operation
-        we have declared.
-        """
-        sync_on_operation_authorized(self, message)
-        if self._context.transaction_manager.all_operations_are_authorized():
-            self._pass_to_next_state()
-
-    def _pass_to_next_state(self):
-        self._context.transaction.wait_until_finished()
-        while True:
-            try:
-                command, _ = self._context._input_queue.get(['systemcommand'],
-                                                            blocking=False)
-                handler = getattr(self, '_handle_command_%s' % command.name)
-                handler(command)
-            except multi_queue.Empty:
-                self._set_next_state(StateRegister.get(self._next_state))
-                break
-
-    def _handle_command_INTEGRITYERRORONDOWNLOAD(self, command):
-        on_download_integrity_error(self, command)
-
-
-class SyncDoneState(ServerSessionState):
-    """Synchronization went well. Finalize it by updating the internal
-    data structures.
-    """
-    accepted_messages = (
-        ServerSessionState.accepted_messages + ['REPLICATION_START'])
-
-    def _on_entering(self):
-        """Persist the new basis, the storage cache and tell the UI
-        about the completion of the sync phase.
-        """
-        completed_operations = self._context.transaction.get_completed_operations()
-
-        if len(completed_operations) == self._context.transaction.size():
-            # All expected operations have been completed.
-            self.logger.info(
-                u"Startup Synchronization phase has completed successfully")
-            self._context.output_message_queue.put(SYNC_DONE('SYNC_DONE'))
-
-            self._update_storage_cache(completed_operations)
-            self._context.transaction.clear()
-            # In case the server had sent a fresher basis
-            # TODO: save into the basis history as well, if the basis has
-            # changed (it happens, for example, if the client had crashed
-            # on the last COMMIT_DONE message)
-            self._persist_trusted_basis(self._context.integrity_manager.getCurrentBasis())
-
-            self._context.metadataDB.delete_key(metadata.LASTACCEPTEDSTATEKEY)
-            self._clear_candidate_basis()
-            self._context.transaction_cache.clear()
-
-            self._context._internal_facade.first_startup_end()
-            self._context._ui_controller.update_session_info(
-                {'basis': self._context.integrity_manager.getCurrentBasis()})
-        else:
-            # Some operations have been aborted. The basis can't be persisted,
-            # because it doesn't match what is on disk. We must stop here and
-            # repeat the synchronization.
-            self.logger.info(u"Startup Synchronization interrupted due to"
-                             " the abort of some operations.")
-            self._context._internal_facade.pause()
-            self._set_next_state(
-                               StateRegister.get('WaitingForTerminationState'))
-            
-        self._context.worker_pool.clean_download_dir()
-
-    def _update_storage_cache(self, operations):
-        """Update the storage cache with the operation we have just done.
-        """
-        self.logger.debug("Starting updating the storage cache...")
-        with self._context.storage_cache.transaction() as storage_cache:
-
-            # Update the records of the downloaded pathnames
-            for (_, operation) in operations:
-                pathname = operation.pathname
-                lmtime = operation.lmtime
-                warebox_size = operation.warebox_size
-                storage_size = operation.storage_size
-                warebox_etag = operation.warebox_etag
-                storage_etag = operation.storage_etag
-                record = (pathname, warebox_size, storage_size,
-                        lmtime, warebox_etag, storage_etag)
-                storage_cache.update_record(*record)
-
-            diff = self._context.startup_synchronization
-
-            # Delete the records of the remotely deleted pathnames
-            for pathname in diff.remote_deletions:
-                storage_cache.delete_record(pathname)
-
-            # Restore the records of the ignored conflicts (that is, pathnames
-            # whose content is the same in the warebox and on the storage but
-            # whose cache record is missing)
-            for pathname in diff.ignored_conflicts:
-                warebox_size = diff.local_size[pathname]
-                storage_size = diff.remote_size[pathname]
-                lmtime = diff.local_lmtime[pathname]
-                warebox_etag = diff.local_etag[pathname]
-                storage_etag = diff.remote_etag[pathname]
-                storage_cache.update_record(pathname, warebox_size,
-                                            storage_size, lmtime,
-                                            warebox_etag, storage_etag)
-
-        self.logger.debug("Finished updating the storage cache.")
-
-    def _handle_message_REPLICATION_START(self, message):
-        """The server is ready to leave the sync phase, too. Let's
-        start the Replication & Transfer phase.
-        """
-        self._set_next_state(
-            StateRegister.get('EnteringReplicationAndTransferState'))
-        self._context._input_queue.put(
-            Command('UPDATEBEFOREREPLICATION'), 'sessioncommand')
-
-
-class WaitingForTerminationState(ServerSessionState):
-
-    accepted_messages = ServerSessionState.accepted_messages
-
-    def _receive_next_message(self):
-        return self._context._input_queue.get(['usercommand'])
+            self.logger.critical('Integrity Error %s' % excp)
+            self._set_next_state(StateRegister.get('IntegrityErrorState'))
 
 
 if __name__ == '__main__':

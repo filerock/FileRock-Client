@@ -138,21 +138,21 @@ class MainWindow(TMainWindow.MainWindow):
 
     def __personalization(self):
 #        self.__init_panel1()
-        _icon = wx.Icon(self._image_path("FileRock.ico"), wx.BITMAP_TYPE_ICO)
+        _icon = wx.Icon(self._image_path("other/FileRock.ico"), wx.BITMAP_TYPE_ICO)
         self.SetIcon(_icon)
 
         self.Bind(wx.EVT_CLOSE, self.OnClose)
 
         self.BUTTON_ICONS = {
-            'status': wx.Bitmap(self._image_path("dialog-information-48.png"), wx.BITMAP_TYPE_PNG),
-            'activity': wx.Bitmap(self._image_path("activity-48.png"), wx.BITMAP_TYPE_PNG),
-            'preferences':  wx.Bitmap(self._image_path("preferences-system-48.png"), wx.BITMAP_TYPE_PNG)
+            'status': wx.Bitmap(self._image_path("GUI-icons/dialog-information-48.png"), wx.BITMAP_TYPE_PNG),
+            'activity': wx.Bitmap(self._image_path("GUI-icons/activity-48.png"), wx.BITMAP_TYPE_PNG),
+            'preferences':  wx.Bitmap(self._image_path("GUI-icons/preferences-system-48.png"), wx.BITMAP_TYPE_PNG)
         }
 
         self.BUTTON_ICONS_LIGHT = {
-            'status': wx.Bitmap(self._image_path("dialog-information-48-light.png"), wx.BITMAP_TYPE_PNG),
-            'activity': wx.Bitmap(self._image_path("activity-48-light.png"), wx.BITMAP_TYPE_PNG),
-            'preferences':  wx.Bitmap(self._image_path("preferences-system-48-light.png"), wx.BITMAP_TYPE_PNG)
+            'status': wx.Bitmap(self._image_path("GUI-icons/dialog-information-48-light.png"), wx.BITMAP_TYPE_PNG),
+            'activity': wx.Bitmap(self._image_path("GUI-icons/activity-48-light.png"), wx.BITMAP_TYPE_PNG),
+            'preferences':  wx.Bitmap(self._image_path("GUI-icons/preferences-system-48-light.png"), wx.BITMAP_TYPE_PNG)
         }
 
         self.statesMessage = STATEMESSAGES
@@ -198,8 +198,8 @@ class MainWindow(TMainWindow.MainWindow):
         self.started = False
 
         self.start_stop_image = {
-                True: wx.Bitmap(self._image_path('pause-48-tango.png'), wx.BITMAP_TYPE_PNG),
-                False: wx.Bitmap(self._image_path('start-48-tango.png'), wx.BITMAP_TYPE_PNG)
+                True: wx.Bitmap(self._image_path('GUI-icons/pause-48-tango.png'), wx.BITMAP_TYPE_PNG),
+                False: wx.Bitmap(self._image_path('GUI-icons/start-48-tango.png'), wx.BITMAP_TYPE_PNG)
         }
         self.start_stop_text = {
                 True: Messages.MAINWINDOW_PAUSE_LABEL,
@@ -243,7 +243,7 @@ class MainWindow(TMainWindow.MainWindow):
         self.panel_1.Show()
         self.Fit()
         self.SetMinSize(self.GetSize())
-        
+
 
     def OnUpdateClientInfo(self, event):
         '''

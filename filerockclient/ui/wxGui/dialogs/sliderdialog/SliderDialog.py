@@ -90,7 +90,7 @@ class SliderDialog(wx.Dialog):
         # begin wxGlade: SliderDialog.__set_properties
         self.SetTitle(Messages.SLIDER_DIALOG_TITLE)
         _icon = wx.EmptyIcon()
-        pathname = os.path.join(IMAGE_PATH, "FileRock.ico")
+        pathname = os.path.join(IMAGE_PATH, "other/FileRock.ico")
         _icon.CopyFromBitmap(wx.Bitmap(pathname, wx.BITMAP_TYPE_ICO))
         self.SetIcon(_icon)
         self.panel_2.SetMinSize((600, 400))

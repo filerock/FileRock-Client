@@ -94,7 +94,7 @@ class WorkerPool(object):
         self._server_session = server_session
         self.logger = logging.getLogger("FR.%s" % self.__class__.__name__)
         how_many_workers = 4
-        
+
         self.up_bandwidth = Bandwidth(cfg.getint(USER_DEFINED_OPTIONS,
                                                  u'bandwidth_limit_upload'))
         self.down_bandwidth = Bandwidth(cfg.getint(USER_DEFINED_OPTIONS,
@@ -192,7 +192,7 @@ class WorkerPool(object):
                 w.join() if w is not threading.current_thread() else None
             self.logger.debug(u"Workers terminated.")
         self.logger.debug(u"WorkerPool terminated.")
-        
+
     def clean_download_dir(self):
         """
         Deletes all the files in the encryption dir
@@ -208,6 +208,6 @@ class WorkerPool(object):
                         os.unlink(file_path)
                 except Exception:
                     self.logger.exception('Error cleaning temp encryption dir')
-                    
+
 if __name__ == '__main__':
     pass

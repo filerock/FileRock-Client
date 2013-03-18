@@ -25,7 +25,7 @@
 #
 
 """
-This is the basismismatch module.
+This is the integrity_error module.
 
 
 
@@ -44,7 +44,7 @@ from filerockclient.serversession.states.abstract import ServerSessionState
 from filerockclient.interfaces import GStatuses
 
 
-class BasisMismatchState(ServerSessionState):
+class IntegrityErrorState(ServerSessionState):
 
     accepted_messages = ServerSessionState.accepted_messages
 
@@ -56,3 +56,8 @@ class BasisMismatchState(ServerSessionState):
         self._context._internal_facade.set_global_status(
             GStatuses.C_HASHMISMATCHONCONNECT)
         self._context._ui_controller.notify_user('hash_mismatch')
+        self._context.release_network_resources()
+        if not self._context.keepalive_timer.is_suspended():
+            self._context.keepalive_timer.suspend_execution()
+        if not self._context.filesystem_watcher.is_suspended():
+            self._context.filesystem_watcher.suspend_execution()

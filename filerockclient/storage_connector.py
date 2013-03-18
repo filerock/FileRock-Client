@@ -25,7 +25,7 @@
 #
 
 """
-<Short description goes here>
+This is the storage_connector module.
 
 
 ----
@@ -46,13 +46,17 @@ import base64
 import binascii
 import hashlib
 
-from FileRockSharedLibraries.Communication.RequestDetails import ENCRYPTED_FILES_IV_HEADER
+from FileRockSharedLibraries.Communication.RequestDetails import \
+    ENCRYPTED_FILES_IV_HEADER
+
 
 CHUNK_SIZE = 4096
 DOWNLOAD_CHUNK_SIZE = CHUNK_SIZE * 10
 
+
 class TerminationException(Exception):
     pass
+
 
 class StorageConnector(object):
 
@@ -73,7 +77,6 @@ class StorageConnector(object):
         else:
             return max
 
-            
     def upload_file(self,
             local_pathname, remote_pathname, remote_ip_address, bucket, token,
             auth_date, open_function, file_md5=None, file_size=None, iv=None,
@@ -172,10 +175,10 @@ class StorageConnector(object):
                 with open_function(local_pathname, 'wb') as local_file:
                     file_size = int(remote_file.info()['Content-Length'])
                     percentage = self.get_percentage(downloaded, file_size)
-                    etag = hashlib.md5();
+                    etag = hashlib.md5()
 
                     chunk = remote_file.read(self.byte_to_send(bandwidth, DOWNLOAD_CHUNK_SIZE))
-                    
+
                     while len(chunk) > 0:
                         if terminationEvent is not None:
                             if terminationEvent.is_set():
@@ -184,9 +187,9 @@ class StorageConnector(object):
                                 local_file.write(chunk)
                         else:
                             local_file.write(chunk)
-                            
+
                         etag.update(chunk)
-                        
+
                         if percentageQueue is not None:
                             downloaded += len(chunk)
                             percentage = self.get_percentage(downloaded, file_size)
@@ -275,4 +278,4 @@ class StorageConnector(object):
 
 
 if __name__ == '__main__':
-    print "\n This file does nothing on its own, it's just the %s module." % __file__
+    pass

@@ -68,7 +68,7 @@ class MyMessageDialog(wx.Dialog):
         # end wxGlade
         self.bitmap_1 = wx.StaticBitmap(self,
                                         -1,
-                                        _img("message_dialog/Warning.png"))
+                                        _img("Warning.png"))
 
         self.__set_properties()
         self.__do_layout()
@@ -99,7 +99,7 @@ class MyMessageDialog(wx.Dialog):
         # begin wxGlade: MyMessageDialog.__set_properties
 #        self.SetTitle("dialog_1")
         # end wxGlade
-        _icon = wx.Icon(os.path.join(IMAGE_PATH, "FileRock.ico"), wx.BITMAP_TYPE_ICO)
+        _icon = wx.Icon(os.path.join(IMAGE_PATH, "other/FileRock.ico"), wx.BITMAP_TYPE_ICO)
         self.SetIcon(_icon)
 
     def __do_layout(self):

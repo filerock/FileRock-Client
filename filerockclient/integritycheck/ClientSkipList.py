@@ -28,8 +28,6 @@
 This is the ClientSkipList module.
 
 
-
-
 ----
 
 This module is part of the FileRock Client.
@@ -40,9 +38,9 @@ FileRock Client is licensed under GPLv3 License.
 
 """
 
-#from FileRockSharedLibraries.IntegrityCheck.Proof import Proof
 from FileRockSharedLibraries.IntegrityCheck.SkipList import AbstractSkipList
 import logging
+
 
 POSITIVE_INFINITE = u'+INF'
 NEGATIVE_INFINITE = u'-INF'
@@ -53,39 +51,40 @@ INSERT = 'INSERT'
 UPDATE = 'UPDATE'
 
 
-
 class ClientSkipList(AbstractSkipList):
-    ''' This class implements a SkipList client-side; it has to be attached to a dataset and it can be built starting by a proof root node.'''
+    '''This class implements a SkipList client-side; it has to be
+    attached to a dataset and it can be built starting by a proof root
+    node.
+    '''
 
-    def __init__(self, root_node, condemned_pathnames = []):
+    def __init__(self, root_node, condemned_pathnames=[]):
         '''
         @root_node: a SkipListNode root of one or more proof paths.
         @dataset: a dictionary { 'pathname': 'content_hash' }
         BE CAREFUL: content_hash IS THE HASH OF THE PATHNAME CONTENT
         '''
-
         super(ClientSkipList, self).__init__()
         self.logger = logging.getLogger("FR."+self.__class__.__name__)
         self.root = root_node
         self._normalize(root_node)
         self.logger.debug(u'SkipList successfully initialized and normalized.')
 
-
-
-
     def _normalize(self, root):
+        '''This method recursively navigate a SkipListNode tree and
+        adjusts the SkipList accordingly.
+
+        This method guarantees not only the presence of the node in its
+        correct position in SkipList data structures, but also that it
+        has correct label directly from dataset.
         '''
-        This method recursively navigate a SkipListNode tree and adjusts the SkipList accordingly.
-        This method guarantees not only the presence of the node in its correct position in SkipList data structures,
-        but also that it has correct label directly from dataset.
-        '''
-        if root == None: return
-        if not root.pathname in self.pathnames: self.pathnames.append(root.pathname)
+        if root is None:
+            return
+        if not root.pathname in self.pathnames:
+            self.pathnames.append(root.pathname)
         #self._resetNodeData(root)
-        if root.height ==0: self.leaves[root.pathname] = root
-        if root.isPlateau(): self.plateaus[root.pathname] = root
+        if root.height == 0:
+            self.leaves[root.pathname] = root
+        if root.isPlateau():
+            self.plateaus[root.pathname] = root
         self._normalize(root.lower_child)
         self._normalize(root.right_child)
-
-
-

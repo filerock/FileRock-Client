@@ -14,30 +14,13 @@
 # along with FileRock Client. If not, see <http://www.gnu.org/licenses/>.
 #
 
+from filerockclient.constants import IS_PYTHON_27, IS_DARWIN, \
+                                     IS_64BITS, IS_LINUX
 
-from filerockclient.constants import IS_PYTHON_27, IS_DARWIN, IS_64BITS,\
-    IS_LINUX
-assert IS_PYTHON_27 , "Python 2.7 required"  
-assert not (IS_DARWIN and IS_64BITS) , "Python 2.7 32bit required on OSX"
+assert IS_PYTHON_27, "Python 2.7 required"
+assert not (IS_DARWIN and IS_64BITS), "Python 2.7 32bit required on OSX"
 
 import sys
-
-SHEBANG_LINUX = "/usr/bin/env python2"
-SHEBANG_OSX = "/usr/bin/env arch -i386 %s" % sys.executable
-
-VERSION = '0.4.4'
-# MAINTAINERS SHOULD SET EXECUTABLE_PATH & COMMAND_LINE_ARGUMENTS
-# CONSTANTS PROPERLY.
-# This should be a string, representing the executable to launch the client.
-EXECUTABLE_PATH = None
-# This should be a list of string, representing command line arguments
-COMMAND_LINE_ARGUMENTS = None
-
-# Please set both of EXECUTABLE_PATH and COMMAND_LINE_ARGUMENTS
-# or neither of them
-assert  (EXECUTABLE_PATH is None and COMMAND_LINE_ARGUMENTS is None) or \
-        (EXECUTABLE_PATH is not None and COMMAND_LINE_ARGUMENTS is not None)
-
 import os
 import fnmatch
 from glob import glob
@@ -53,6 +36,25 @@ except ImportError:
 
 from filerockclient import APPLICATION_NAME as APPNAME
 
+
+VERSION = '0.4.6'
+
+SHEBANG_LINUX = "/usr/bin/env python2"
+SHEBANG_OSX = "/usr/bin/env arch -i386 %s" % sys.executable
+
+# MAINTAINERS SHOULD SET EXECUTABLE_PATH & COMMAND_LINE_ARGUMENTS
+# CONSTANTS PROPERLY.
+# This should be a string, representing the executable to launch the client.
+EXECUTABLE_PATH = None
+# This should be a list of string, representing command line arguments
+COMMAND_LINE_ARGUMENTS = None
+
+# Please set both of EXECUTABLE_PATH and COMMAND_LINE_ARGUMENTS
+# or none of them
+assert (EXECUTABLE_PATH is None and COMMAND_LINE_ARGUMENTS is None) or \
+       (EXECUTABLE_PATH is not None and COMMAND_LINE_ARGUMENTS is not None)
+
+
 def opj(*args):
     path = os.path.join(*args)
     return os.path.normpath(path)
@@ -67,9 +69,9 @@ def write_build_spec():
                ]
     with open(build_specs_file, 'w') as spec_file:
         spec_file.write("\n".join(content))
-        
+
     return build_specs_file
-    
+
 
 def get_subpackages(*packages):
     subpkgs_list = []
@@ -126,21 +128,23 @@ def get_data_files(dstdir, srcdir, *wildcards, **kw):
                     [os.path.basename(f) for f in glob(opj(srcdir, '*'))])
     return file_list
 
+
 def _write_file_with_shebang(new_file, old_file, shebang):
     with open(old_file, "r") as python_script:
         with open(new_file, "w") as launcher:
             launcher.write("#!%s\n" % shebang)
             launcher.write(python_script.read())
 
+
 def set_shebang(script):
     launcher = script
     if IS_LINUX:
-        launcher = script.replace(".py","")
+        launcher = script.replace(".py", "")
         _write_file_with_shebang(launcher, script, SHEBANG_LINUX)
     elif IS_DARWIN:
-        launcher = script.replace(".py","")
+        launcher = script.replace(".py", "")
         _write_file_with_shebang(launcher, script, SHEBANG_OSX)
-                  
+
     return launcher
 
 
@@ -149,10 +153,9 @@ build_specs_file = write_build_spec()
 data_files = get_data_files(opj('share', APPNAME), 'data', '*')
 packages = get_subpackages('filerockclient', 'FileRockSharedLibraries')
 
-
 SCRIPT = 'filerock.py'
 SHEBANG_SCRIPT = set_shebang(SCRIPT)
- 
+
 attrs = {
     'name': APPNAME,
     'description': 'FileRock Secure Cloud Storage',

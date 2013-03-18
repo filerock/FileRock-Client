@@ -57,7 +57,7 @@ from filerockclient.ui.wxGui.constants import IMAGE_PATH
 ERROR_COLOR = wx.Colour(255, 0, 0)
 SUCCESS_COLOR = wx.Colour(0, 170, 70)
 MESSAGE_COLOR = wx.Colour(0, 0, 0)
-LOGOTYPE = os.path.join(IMAGE_PATH, "FileRockLogotype.png")
+LOGOTYPE = os.path.join(IMAGE_PATH, "other/FileRockLogotype.png")
 HEADLINE_PLACEHOLDER = u"Please insert your FileRock credentials"
 
 
@@ -148,7 +148,7 @@ class LinkDialog(wx.Dialog):
         # begin wxGlade: LinkDialog.__set_properties
         self.SetTitle(Messages.LINK_TITLE)
         _icon = wx.EmptyIcon()
-        pathname = os.path.join(IMAGE_PATH, "FileRock.ico")
+        pathname = os.path.join(IMAGE_PATH, "other/FileRock.ico")
         _icon.CopyFromBitmap(wx.Bitmap(pathname, wx.BITMAP_TYPE_ANY))
         self.SetIcon(_icon)
         self.username_ctrl.SetMinSize((200, 23))

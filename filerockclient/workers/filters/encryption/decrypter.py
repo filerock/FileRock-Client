@@ -77,7 +77,8 @@ class Decrypter(object):
         """
         self.completed = False #set the task as not completed
         in_filename = tw.task.encrypted_pathname #read filename from task
-        if hasattr(tw.task,'temp_pathname'):
+        
+        if hasattr(tw.task, 'temp_pathname'):
             out_filename = tw.task.temp_pathname
         else:
             out_filename = tw.task.pathname #read output filename from taskwrapper

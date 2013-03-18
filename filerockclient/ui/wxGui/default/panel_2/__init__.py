@@ -121,26 +121,26 @@ class AutoWidthListCtrl(wx.ListCtrl, ListCtrlAutoWidthMixin):
         }
 
         image_list = wx.ImageList(32, 32)
-        self._and_more_img = image_list.Add(_img('and_more.png'))
+        self._and_more_img = image_list.Add(_img('GUI-icons/and_more.png'))
 
         self.pathname_status_icon = {
-            Pss.TOBEUPLOADED:   image_list.Add(_img('go-up-gray.png')),
-            Pss.UPLOADING:      image_list.Add(_img('go-up.png')),
-            Pss.UPLOADED:       image_list.Add(_img('go-up.png')),
-            Pss.TOBEDOWNLOADED: image_list.Add(_img('go-down-gray.png')),
-            Pss.DOWNLOADING:    image_list.Add(_img('go-down.png')),
-            Pss.DELETETOBESENT: image_list.Add(_img('go-rm-gray.png')),
-            Pss.DELETESENT:     image_list.Add(_img('go-rm.png'))
+            Pss.TOBEUPLOADED:   image_list.Add(_img('GUI-icons/go-up-gray.png')),
+            Pss.UPLOADING:      image_list.Add(_img('GUI-icons/go-up.png')),
+            Pss.UPLOADED:       image_list.Add(_img('GUI-icons/go-up.png')),
+            Pss.TOBEDOWNLOADED: image_list.Add(_img('GUI-icons/go-down-gray.png')),
+            Pss.DOWNLOADING:    image_list.Add(_img('GUI-icons/go-down.png')),
+            Pss.DELETETOBESENT: image_list.Add(_img('GUI-icons/go-rm-gray.png')),
+            Pss.DELETESENT:     image_list.Add(_img('GUI-icons/go-rm.png'))
         }
 
         self.encrypted_pathname_status_icon = {
-            Pss.TOBEUPLOADED:   image_list.Add(_img('enc-go-up-gray.png')),
-            Pss.UPLOADING:      image_list.Add(_img('enc-go-up.png')),
-            Pss.UPLOADED:       image_list.Add(_img('enc-go-up.png')),
-            Pss.TOBEDOWNLOADED: image_list.Add(_img('enc-go-down-gray.png')),
-            Pss.DOWNLOADING:    image_list.Add(_img('enc-go-down.png')),
-            Pss.DELETETOBESENT: image_list.Add(_img('enc-go-rm-gray.png')),
-            Pss.DELETESENT:     image_list.Add(_img('enc-go-rm.png'))
+            Pss.TOBEUPLOADED:   image_list.Add(_img('GUI-icons/enc-go-up-gray.png')),
+            Pss.UPLOADING:      image_list.Add(_img('GUI-icons/enc-go-up.png')),
+            Pss.UPLOADED:       image_list.Add(_img('GUI-icons/enc-go-up.png')),
+            Pss.TOBEDOWNLOADED: image_list.Add(_img('GUI-icons/enc-go-down-gray.png')),
+            Pss.DOWNLOADING:    image_list.Add(_img('GUI-icons/enc-go-down.png')),
+            Pss.DELETETOBESENT: image_list.Add(_img('GUI-icons/enc-go-rm-gray.png')),
+            Pss.DELETESENT:     image_list.Add(_img('GUI-icons/enc-go-rm.png'))
         }
 
         self.AssignImageList(image_list, wx.IMAGE_LIST_SMALL)
@@ -277,7 +277,7 @@ class Panel2(wx.Panel):
         self._activities = AutoWidthListCtrl(self)
         ###########DO NOT REMOVE#############
         self._image = wx.StaticBitmap(self, -1,
-                                     self._img('activities_legend.png')
+                                     self._img('other/activities_legend.png')
                                      )
         #####################################
         self.__set_properties()

@@ -141,7 +141,7 @@ def GetVHash_from_local(hash_str, size, logger=None):
     '''
     if hash_str == UNKNOWN_HASH:
         unknown_hash_image = os.path.join(IMAGE_PATH,
-                                          'unknown_robot_{size}x{size}.png')
+                                          'other/unknown_robot_{size}x{size}.png')
         return wx.Bitmap(unknown_hash_image.format(size=size))
 
     try:
@@ -157,7 +157,7 @@ def GetVHash_from_local(hash_str, size, logger=None):
             logger.debug("exception fetching Visual Hash: %s" % exc)
         connection_problem_image = os.path.join(
                                         IMAGE_PATH,
-                                        'noconnection_robot_{size}x{size}.png')
+                                        'other/noconnection_robot_{size}x{size}.png')
         return wx.Bitmap(connection_problem_image.format(size=size),
                          wx.BITMAP_TYPE_ANY)
 

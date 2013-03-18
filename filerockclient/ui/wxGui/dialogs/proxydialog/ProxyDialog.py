@@ -74,6 +74,36 @@ PROXY_VALUE_TO_LABEL = {
 
 
 
+class SpinCtrl(wx.SpinCtrl):
+    def __init__(self, *args, **kwds):
+        super(SpinCtrl, self).__init__(*args, **kwds)
+        self.default_value = 0
+        self.Bind(wx.EVT_KILL_FOCUS, self.updateValue)
+    
+    def SetValue(self, value):
+        int_value = 0
+        try:
+            int_value=int(value)
+        except:
+            pass
+        return super(SpinCtrl, self).SetValue(int_value)
+    
+    def GetValue(self):
+        str_value = '0'
+        try:
+            str_value = str(super(SpinCtrl, self).GetValue())
+        except:
+            pass
+        return str_value
+    
+    def updateValue(self, env):
+        try:
+            value_to_set = int(self.GetValue())
+        except:
+            value_to_set = 1
+        self.SetValue(value_to_set)
+            
+
 class CtrlText(wx.TextCtrl):
 
     def __init__(self, *args, **kwds):
@@ -156,7 +186,12 @@ WIDGETS = {
                                                    style=wx.CB_READONLY
                                                    ),
         'proxy_host': lambda parent, val: CtrlText(parent, -1, val),
-        'proxy_port': lambda parent, val: CtrlText(parent, -1, val),
+        'proxy_port': lambda parent, val: SpinCtrl(parent,
+                                                   -1,
+                                                   val,
+                                                   style=wx.SP_HORIZONTAL,
+                                                   min=0,
+                                                   max=655360),
         'proxy_rdns': lambda parent, val: CheckBox(val, parent),
         'proxy_username': lambda parent, val: CtrlText(parent, -1, val),
         'proxy_password': lambda parent, val: CtrlText(parent, -1, val)
@@ -179,7 +214,7 @@ class ProxyDialog(wx.Dialog):
         # begin wxGlade: ProxyDialog.__set_properties
         self.SetTitle("Proxy Settings")
         # end wxGlade
-        pathname = os.path.join(IMAGE_PATH, 'FileRock.ico')
+        pathname = os.path.join(IMAGE_PATH, 'other/FileRock.ico')
         _icon = wx.Icon(pathname, wx.BITMAP_TYPE_ICO)
         self.SetIcon(_icon)
 

@@ -1,0 +1,38 @@
+
+Licences
+--------
+
+FileRock-Client software is released under the terms of GPL v3 License.
+
+The full license text is available in the LICENSE.gpl file or online at
+http://www.gnu.org/licenses/gpl.html .
+
+All images and icons, where not specified, are distributed under the
+CC-BY-SA v3 License, whose full text is available in the LICENSE.cc file or
+online at http://creativecommons.org/licenses/by-sa/3.0/ .
+
+The following exceptions apply.
+
+* The following files are distributed under GPL v3 License:
+        data/icons/Status_icons/ALIGNED.png
+        data/icons/Status_icons/ANOTHERCLIENT.png
+        data/icons/Status_icons/NOSERVER.png
+        data/icons/Status_icons/SERVICEBUSY.png
+        data/icons/Status_icons/UNKNOWN.png
+        data/images/other/folder-48.png
+
+* The following files are distributed under LGPL v3 License, whose full text
+  is available in the LICENSE.lgpl file or online at
+  http://www.gnu.org/licenses/lgpl.html :
+        data/icons/Status_icons/BROKENPROOF.png
+        data/icons/Status_icons/HASHMISMATCHONCOMMIT.png
+        data/icons/Status_icons/HASHMISMATCHONCONNECT.png
+        data/icons/Status_icons/NOTAUTHORIZED.png
+        data/icons/Status_icons/CONNECTING.png
+        data/images/Warning.png
+
+* The following files are distributed to the Public Domain:
+        data/icons/Status_icons/NOTALIGNED.png
+        data/icons/Status_icons/STOPPED.png
+
+

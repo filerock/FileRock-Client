@@ -47,9 +47,10 @@ from filerockclient.workers.filters.encryption.decrypter import Decrypter
 from filerockclient.workers.filters.encryption.encrypter import Encrypter
 from filerockclient.pathname_operation import PathnameOperation
 from filerockclient.workers.filters.encryption import utils as CryptoUtils
-from filerockclient.warebox import Warebox
 from Crypto.Cipher import AES
+from filerockclient.exceptions import ExecutionInterrupted
 from filerockclient.workers.filters.encryption.pkcs7_padder import PKCS7Padder
+
 
 def decrypt(pathname_operation, warebox, cfg, logger=None):
     """
@@ -115,8 +116,8 @@ def compute_md5_hex(pathname):
     '''
     return hexlify(get_local_file_etag(pathname))
 
-def recalc_encrypted_etag(ivs, warebox, cfg):
-    return recalc_encrypted_etag_in_mem(ivs, warebox, cfg)
+def recalc_encrypted_etag(ivs, warebox, cfg, interruption=None):
+    return recalc_encrypted_etag_in_mem(ivs, warebox, cfg, interruption)
     """
     Encrypt all the files into the encrypted folder and return a list of etag
 
@@ -145,7 +146,8 @@ def recalc_encrypted_etag(ivs, warebox, cfg):
             raise
     return encrypted_etags
 
-def recalc_encrypted_etag_in_mem(ivs, warebox, cfg):
+
+def recalc_encrypted_etag_in_mem(ivs, warebox, cfg, interruption=None):
     """
     Encrypt all the files into the encrypted folder and return a list of etag
 
@@ -158,6 +160,8 @@ def recalc_encrypted_etag_in_mem(ivs, warebox, cfg):
     chunksize = CryptoUtils.CHUNK_SIZE
     padder = PKCS7Padder()
     for pathname in ivs:
+        if interruption is not None and interruption.is_set():
+            raise ExecutionInterrupted()
         try:
             fp = warebox.open(pathname, mode="rb")
             md5 = hashlib.md5()

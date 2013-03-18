@@ -802,28 +802,27 @@ class Application(object):
         clean_cmdline_arg('--no-startup-slides')
         cmdline_args.append('--no-startup-slides')
 
-        logger.debug('Command HARD_RESET executed. Restarting process...'
-                     ' (executable: %s, args: %s)'
-                     % (cmdline_args[0], cmdline_args))
-
         def escape_cmdline_args(args):
             """Perform any escaping needed by the OS shell.
 
             Windows requires the command line arguments to be double-
             quoted. Linux and OSX require to be NOT double-quoted.
             """
-            if sys.platform.startswith('win'):
-                escaped_args = [u'"%s"' % arg for arg in args]
+            if not sys.platform.startswith('win'):
+                return args
             else:
-                escaped_args = args
-            return escaped_args
+                return [u'"%s"' % arg for arg in args]
 
+        executable = cmdline_args[0]
         cmdline_args = escape_cmdline_args(cmdline_args)
 
+        logger.debug('Command HARD_RESET executed. Restarting process...'
+                     ' (executable: %s, args: %s)'
+                     % (executable, cmdline_args))
 
         # TODO: we should flush every open file descriptor before execv*
         # (see http://docs.python.org/2/library/os.html#os.execvpe)
-        os.execvp(cmdline_args[0], tuple(cmdline_args))
+        os.execvp(executable, tuple(cmdline_args))
 
 
 if __name__ == '__main__':

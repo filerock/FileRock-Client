@@ -95,7 +95,7 @@ class WareboxDialog(wx.Dialog):
         # begin wxGlade: WareboxDialog.__set_properties
         self.SetTitle(Messages.WAREBOX_DIALOG_TITLE)
         _icon = wx.EmptyIcon()
-        pathname = os.path.join(IMAGE_PATH, "FileRock.ico")
+        pathname = os.path.join(IMAGE_PATH, "other/FileRock.ico")
         _icon.CopyFromBitmap(wx.Bitmap(pathname, wx.BITMAP_TYPE_ANY))
         self.SetIcon(_icon)
         # end wxGlade

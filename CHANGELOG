@@ -4,6 +4,23 @@ FileRock Client - Changelog
 ===========================
 
 
+Version 0.4.6
+
+- Mar. 15, 2013
+
+New features:
+
+- Improved the integrity checks.
+- Better responsiveness to user commands.
+- Improved the performances of the download phase.
+
+
+Fixed bugs:
+- Automatic restarting was broken on Windows.
+
+
+---------------------------
+
 Version 0.4.4
 
 - Feb. 28, 2013

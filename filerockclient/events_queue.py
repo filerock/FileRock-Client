@@ -43,7 +43,7 @@ import logging
 
 from filerockclient.events_todo_structure import EventsTodoStructure
 from filerockclient.pathname_operation import PathnameOperation
-from filerockclient.interfaces import PStatus, PStatuses
+from filerockclient.interfaces import PStatuses
 
 
 class PathnameEvent(object):
@@ -258,8 +258,7 @@ class EventsQueue(object):
             self.map.setStatus('OK', file_operation.pathname)
             self.map.unlock(file_operation.pathname)
             self.application.notify_pathname_status_change(
-                                    file_operation.pathname, PStatuses.ALIGNED)
-
+                file_operation.pathname, PStatuses.ALIGNED)
 
     def _create_pathname_operation(self, status, pathname, oldpath=None):
         """
