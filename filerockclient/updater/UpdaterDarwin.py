@@ -109,8 +109,8 @@ class Updater_darwin(UpdaterBase):
         script_dest_path = os.path.abspath(os.path.join(self.temp_dir, self.UPDATE_SCRIPT_FILENAME))
 
         # Check if script already exists within temp dir (possibly deleting it)
-        try: assert not os.path.exists(script_dest_path)
-        except AssertionError: os.unlink(script_dest_path)
+        if os.path.exists(script_dest_path):
+            os.unlink(script_dest_path)
 
         # Move update script out of app bundle path
         shutil.copy(script_src_path, script_dest_path)

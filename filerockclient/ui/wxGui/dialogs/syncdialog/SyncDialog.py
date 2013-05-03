@@ -139,8 +139,9 @@ class SyncDialog(wx.Dialog):
     def updateRobotHash(self):
         self.robohash_from_bitmap.SetBitmap(Utils.GetVHash(self.local_basis, 100, self.logger))
         self.robohash_to_bitmap.SetBitmap(Utils.GetVHash(self.server_basis, 100, self.logger))
-
+    
     def update_information(self, client_basis, server_basis, content):
+        
         local_basis = client_basis
         self.local_basis = client_basis
         self.server_basis = server_basis
@@ -158,17 +159,8 @@ class SyncDialog(wx.Dialog):
         updateRobots.run()
         if len(content) == 0:
             self.panel_2.give_message(Messages.BASIS_MISMATCH_NOTHING_TO_SYNC)
-        for element in reversed(content):
-            if u'newpathname' in element:
-                self.panel_2.updatePathnameStatus(element[u'pathname'],
-                                                  element[u'status'],
-                                                  element[u'size'],
-                                                  element[u'newpathname'])
-            else:
-                self.panel_2.updatePathnameStatus(element[u'pathname'],
-                                                  element[u'status'],
-                                                  element[u'size'])
+            
+        self.panel_2.update_content(content)
 
 # end of class SyncDialog
-
 

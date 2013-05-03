@@ -117,9 +117,8 @@ class PlatformSettingsLinux(PlatformSpecificSettingsBase):
 
         # Check if UNITY_PANEL_SCHEMA is whitin GSettings schema
         # (not doing so may cause a crash when calling Gio.Settings.new() )
-        try:
-            assert self.UNITY_PANEL_SCHEMA in Gio.Settings.list_schemas()
-        except AssertionError:
+        
+        if not self.UNITY_PANEL_SCHEMA in Gio.Settings.list_schemas():
             self.logger.warning(u'%s schema is not listed between valid schemas, skipping whitelist procedure...' % self.UNITY_PANEL_SCHEMA)
             return True
 
@@ -130,9 +129,7 @@ class PlatformSettingsLinux(PlatformSpecificSettingsBase):
         # (not doing so may cause a crash when calling get/set value methods)
         # Note: if whitelist contains "all" keyword, then any application is allowed
         # in the systray
-        try:
-            assert self.UNITY_PANEL_SYSTRAY_WHITELIST in gsettings.list_keys()
-        except AssertionError:
+        if  not self.UNITY_PANEL_SYSTRAY_WHITELIST in gsettings.list_keys():
             self.logger.warning(u'%s key not found in %s, skipping whitelist procedure...' % (self.UNITY_PANEL_SYSTRAY_WHITELIST, self.UNITY_PANEL_SCHEMA))
             return True
 

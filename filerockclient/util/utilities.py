@@ -80,14 +80,20 @@ def nbgetch():
         import fcntl
         fd = sys.stdin.fileno()
         # Set stdin attributes:
-        oldterm = termios.tcgetattr(fd)
-        newattr = termios.tcgetattr(fd)
-        # non canonical mode == non buffered stdin
-        newattr[3] = newattr[3] & ~termios.ICANON & ~termios.ECHO
-        termios.tcsetattr(fd, termios.TCSANOW, newattr)
-        # Non blocking mode
-        oldflags = fcntl.fcntl(fd, fcntl.F_GETFL)
-        fcntl.fcntl(fd, fcntl.F_SETFL, oldflags | os.O_NONBLOCK)
+        try:
+            oldterm = termios.tcgetattr(fd)
+            newattr = termios.tcgetattr(fd)
+            # non canonical mode == non buffered stdin
+            newattr[3] = newattr[3] & ~termios.ICANON & ~termios.ECHO
+            termios.tcsetattr(fd, termios.TCSANOW, newattr)
+            # Non blocking mode
+            oldflags = fcntl.fcntl(fd, fcntl.F_GETFL)
+            fcntl.fcntl(fd, fcntl.F_SETFL, oldflags | os.O_NONBLOCK)
+        except Exception:
+            # if something goes wrong the terminal might not support it
+            # e.g. when running into a debugger
+            return False
+
         try:
             return sys.stdin.read(1)
         except IOError:
@@ -115,8 +121,7 @@ def increase_exponentially(timer, max_value=float("inf"), min_value=1):
     return min(timer * 2, max_value)
 
 
-def exponential_backoff_waiting(
-                waiting_time, max_waiting_time=0):
+def exponential_backoff_waiting(waiting_time, max_waiting_time=0):
     """
     Make the current thread sleep for an interval of time that increases
     exponentially on each call.
@@ -145,8 +150,9 @@ def exponential_backoff_waiting(
     return wait_for
 
 
-def stoppable_exponential_backoff_waiting(
-                waiting_time, event, max_waiting_time=0):
+def stoppable_exponential_backoff_waiting(waiting_time,
+                                          event,
+                                          max_waiting_time=0):
     """
     Make the current thread sleep for an interval of time that increases
     exponentially on each call. The sleeping can be interrupted by an
@@ -296,6 +302,7 @@ def convert_line_endings(temp, mode=None):
 
     return temp
 
+
 def _try_remove(pathname, logger=None):
     max_retry = 2
     for i in range(max_retry):
@@ -316,6 +323,7 @@ def _try_remove(pathname, logger=None):
                 logger.debug(u'File %s deleted' % pathname)
             break
 
+
 def open_folder_in_system_shell(folder_path):
     """Open the given folder path in the system shell.
     """
@@ -330,6 +338,130 @@ def open_folder_in_system_shell(folder_path):
 
     elif sys.platform.startswith('darwin'):
         os.system('open %s' % folder_path)
+
+
+#_replace_with_slash_pattern=re.compile("/\./|//")
+#_forbidden_pattern=re.compile("/\./|//|(/$)|/\.\./|(/\.\.$)")
+
+#def fastnormpath(p):
+    #"""This is a fast replacement of os.path.normpath() for all
+    #cases that are useful in this software. That is,
+    #it replaces one occurrence of "/./" and "//" with "/",
+    #delete one trailing "/". Ignore "/../" and "/.." at the end.
+    #It checks for normalized path with an assertion at the end so
+    #that any use that returns a not normalized path is trapped.
+    #"""
+
+    #np=re.sub(_replace_with_slash_pattern, "/", p)
+    #if np[-1]=="/":
+        #np=np[:-1]
+
+    #assert not re.search(_forbidden_pattern, np)
+    #return np
+
+
+# fastjoin() optimization has been reverted because it does not work in all cases.
+
+#def fastjoin(p1, p2):
+    #"""This is a fast replecement of os.path.join with some semantic
+    #differences. It just concats p1 and p2 with the right separator.
+    #"""
+    #if len(p1)==0:
+        #p=p2
+    #else:
+        #p=p1+os.sep+p2
+    #assert p==os.path.join(p1,p2)
+    #return p
+
+
+def fastjoin(p1, p2):
+    return os.path.join(p1, p2)
+
+
+def fastrelpath(path, start):
+    """This is a fast replacement of os.path.relpath()
+    with a slightly different semantic useful for typicall
+    use cases. That is, stript the first len(start) characters
+    of path. It checks by "assert" that what has been strept is
+    equal to start.
+    Parameter start must end with  '/'.
+    If start==path then '' is returned.
+    """
+    assert path[-3:] != "/.."
+    assert path[-2:] != "/."
+    assert path.find("/./") == -1
+    assert path.find("/../") == -1
+    assert path.find("//") == -1
+
+    startpath = start
+    startlength = len(startpath)
+    S = len(os.sep)
+    assert path[:startlength] == startpath
+
+    try:
+        if path[startlength:startlength + S] == os.sep:
+            startlength += S
+    except IndexError:
+        pass
+    relativepath = path[startlength:]
+
+    assert len(relativepath) == 0 or relativepath[:S] != os.sep
+    assert (relativepath if len(relativepath) > 0 else '.') \
+        == os.path.relpath(path, start)
+
+    return relativepath
+
+
+if sys.platform.startswith("win"):
+    def fastnormpath(p):
+        """This is a fast replacement of os.path.normpath() for all
+        cases that are useful in this software. That is,
+        it replaces one occurrence of "//" with "/",
+        delete one trailing "/". Ignore "/../", "/.." at the end.
+        It checks for normalized path with an assertion at the end so
+        that any use that returns a not normalized path is trapped.
+        """
+        np0 = p.replace("\\", "/")
+        np = np0.replace("//", "/")
+
+        if np[-1] == "/":
+            np = np[:-1]
+
+        assert np[-1] != "/"
+        assert np[-3:] != "/.."
+        assert np[-2:] != "/."
+        assert np.find("/./") == -1
+        assert np.find("/../") == -1
+        assert np.find("//") == -1
+
+        np2 = np.replace("/", "\\")
+
+        assert np2 == os.path.normpath(p)
+        return np2
+
+else:
+    def fastnormpath(p):
+        """This is a fast replacement of os.path.normpath() for all
+        cases that are useful in this software. That is,
+        it replaces one occurrence of "//" with "/",
+        delete one trailing "/". Ignore "/../", "/.." at the end.
+        It checks for normalized path with an assertion at the end so
+        that any use that returns a not normalized path is trapped.
+        """
+        np = p.replace("//", "/")
+
+        if np[-1] == "/":
+            np = np[:-1]
+
+        assert np[-1] != "/"
+        assert np[-3:] != "/.."
+        assert np[-2:] != "/."
+        assert np.find("/./") == -1
+        assert np.find("/../") == -1
+        assert np.find("//") == -1
+        assert np == os.path.normpath(p)
+
+        return np
 
 
 if __name__ == '__main__':

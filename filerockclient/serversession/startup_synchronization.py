@@ -118,8 +118,12 @@ class StartupSynchronization(object):
         self.remote_size = {}
         self.remote_lmtime = {}
         self.remote_etag = {}
+
+        # TODO: these two are not used outside of this module,
+        # maybe they can be removed.
         self.content_to_upload = set()
         self.content_to_delete = set()
+
         self.content_to_download = set()
         self.content_to_delete_locally = set()
         self.remote_deletions = set()
@@ -136,26 +140,22 @@ class StartupSynchronization(object):
         # Collect data
         last_session_content = self._get_last_session_content(interruption)
         remote_content = self._get_remote_content(storage_content)
-        # Ignore any pathname in the warebox that is not also in the storage
-        # or in the storage cache. They have nothing to do with sync, are
-        # new pathnames that will be uploaded in R&T
-        filter_on = last_session_content.union(remote_content)
-        local_content = self._get_local_content(filter_on, interruption)
+        local_content = self._get_local_content(interruption)
 
-##        print "Last session content:\n%s" % last_session_content
-##        print "Local content:\n%s" % local_content
-##        print "Remote content:\n%s" % remote_content
+        # print "Last session content:\n%s" % last_session_content
+        # print "Local content:\n%s" % local_content
+        # print "Remote content:\n%s" % remote_content
 
         # 1) Detect offline changes.
 
         # Compute: storage - storage_cache
         self.content_to_download, self.content_to_delete_locally = \
-                    self._detect_remote_changes(
-                                        last_session_content, remote_content)
+            self._detect_remote_changes(last_session_content, remote_content)
+
         # Compute: warebox - storage_cache
         self.content_to_upload, self.content_to_delete = \
-                    self._detect_local_changes(
-                                        last_session_content, local_content)
+            self._detect_local_changes(last_session_content, local_content)
+
         # Save a backup copy of the list of deletions, we'll need it later
         self.remote_deletions = self.content_to_delete_locally.copy()
 
@@ -169,29 +169,34 @@ class StartupSynchronization(object):
         # content_to_upload to remove any ignored conflicts. Maybe it is
         # better to do it here!
         self.edit_conflicts, self.ignored_conflicts = \
-                    self._detect_edit_conflicts(
-                            self.content_to_upload, self.content_to_download)
+            self._detect_edit_conflicts(self.content_to_upload,
+                                        self.content_to_download)
+
         # Common deletions: they just need to remove the cache records.
         common_deletions = self.content_to_delete.intersection(
-                                            self.content_to_delete_locally)
+            self.content_to_delete_locally)
+
         # Deletion conflicts: the storage has deleted a pathname that's been
         # modified in the warebox. Alternatively, it has deleted an ancestor
         # of the modified pathname.
         self.deletion_conflicts = self._detect_deletion_conflicts(
-                        self.content_to_upload, self.content_to_delete_locally)
+            self.content_to_upload, self.content_to_delete_locally)
+
         # Don't upload conflicted pathnames, since they need to be renamed
         # in order to resolve the conflict.
-        self.content_to_upload.difference_update(
-                                self.edit_conflicts, self.deletion_conflicts)
+        self.content_to_upload.difference_update(self.edit_conflicts,
+                                                 self.deletion_conflicts)
+
         # Don't send deletions for pathnames that have been either modified or
         # deleted remotely - remember, the storage wins.
-        self.content_to_delete.difference_update(
-                                    self.content_to_download, common_deletions)
+        self.content_to_delete.difference_update(self.content_to_download,
+                                                 common_deletions)
+
         # Don't locally delete pathnames that have been already deleted
         # from the warebox (nothing to delete) or that are conflicted
         # (renaming, which solves the conflict, performs an implicit delete).
-        self.content_to_delete_locally.difference_update(
-                                    common_deletions, self.deletion_conflicts)
+        self.content_to_delete_locally.difference_update(common_deletions,
+                                                         self.deletion_conflicts)
 
     def update_conflicts_of_encrypted_pathnames(self, encrypted_etags):
         """
@@ -230,40 +235,41 @@ class StartupSynchronization(object):
         warebox should (and shall) will be assigned to workers sooner
         or later.
         """
-##        self.logger.debug(u'Edit conflicts:\n' + '\n'.join(sorted(self.edit_conflicts)) + '\n\n')
-##        self.logger.debug(u'Deletion conflicts:\n' + '\n'.join(sorted(self.deletion_conflicts)) + '\n\n')
-##        self.logger.debug(u'Content to delete:\n' + '\n'.join(sorted(self.content_to_delete)) + '\n\n')
-##        self.logger.debug(u'Content to upload:\n' + '\n'.join(sorted(self.content_to_upload)) + '\n\n')
-##        self.logger.debug(u'Content to delete locally:\n' + '\n'.join(sorted(self.content_to_delete_locally)) + '\n\n')
-##        self.logger.debug(u'Content deleted from storage:\n' + '\n'.join(sorted(self.remote_deletions)) + '\n\n')
-##        self.logger.debug(u'Content to download:\n' + '\n'.join(sorted(self.content_to_download)) + '\n\n')
-
-        # Solve conflicts by renaming local pathnames. Content_to_upload is
-        # updated with the new pathnames.
-        # Note: edit conflicts now are solved by workers when they do the
-        # downloads, so this code here has become useless.
-#        self._solve_edit_conflicts(self.edit_conflicts, self.content_to_upload)
-        #self._solve_deletion_conflicts(self.deletion_conflicts, self.content_to_delete_locally, self.content_to_upload)
+        # self.logger.debug(u"Edit conflicts:\n%s\n\n"
+        #                   % '\n'.join(sorted(self.edit_conflicts)))
+        # self.logger.debug(u'Deletion conflicts:\n%s\n\n'
+        #                   % '\n'.join(sorted(self.deletion_conflicts)))
+        # self.logger.debug(u'Content to delete:\n%s\n\n'
+        #                   % '\n'.join(sorted(self.content_to_delete)))
+        # self.logger.debug(u'Content to upload:\n%s\n\n'
+        #                   % '\n'.join(sorted(self.content_to_upload)))
+        # self.logger.debug(u'Content to delete locally:\n%s\n\n'
+        #                   % '\n'.join(sorted(self.content_to_delete_locally)))
+        # self.logger.debug(u'Content deleted from storage:\n%s\n\n'
+        #                   % '\n'.join(sorted(self.remote_deletions)))
+        # self.logger.debug(u'Content to download:\n%s\n\n'
+        #                   % '\n'.join(sorted(self.content_to_download)))
 
         # Sort pathnames so to perform operations in the correct order
-        ##        self.content_to_upload = sorted(self.content_to_upload)
-        ##        self.content_to_delete = sorted(self.content_to_delete)
-        ##        self.content_to_delete.reverse()
         self.content_to_download = sorted(self.content_to_download)
         self.content_to_delete_locally = sorted(self.content_to_delete_locally)
         self.content_to_delete_locally.reverse()
 
-        ##        if len(content_to_upload) > 0 or len(content_to_delete) > 0:
-        ##            self.logger.info(u'The following pathnames have been locally updated while offline and will be synchronized:')
-        ##            for pathname in self.content_to_upload: self.logger.info(u'    UPLOAD %s' % pathname)
-        ##            for pathname in self.content_to_delete: self.logger.info(u'    DELETE %s' % pathname)
-
         if len(self.content_to_download) > 0 or len(self.content_to_delete_locally) > 0:
-            self.logger.info(u'The following pathnames have been remotely updated while offline and will be synchronized:')
-            for pathname in self.content_to_download: self.logger.info(u'    DOWNLOAD %s' % pathname)
-            for pathname in self.content_to_delete_locally: self.logger.info(u'    DELETE LOCAL %s' % pathname)
-
-        #self._perform_local_deletions(self.content_to_delete_locally)
+            self.logger.info(u'The following pathnames have been remotely '
+                             'updated while offline and will be synchronized:')
+            MAXDOWNLOAD_IN_LOG = 100
+            MAXDELETE_IN_LOG = 100
+            self.logger.info(
+                u'    DOWNLOADING %d files, no more than %d visualized'
+                % (len(self.content_to_download), MAXDOWNLOAD_IN_LOG))
+            self.logger.info(
+                u'    DELETING %d files, no more than %d visualized'
+                % (len(self.content_to_delete_locally), MAXDELETE_IN_LOG))
+            for pathname in self.content_to_download[:MAXDOWNLOAD_IN_LOG]:
+                self.logger.info(u'    DOWNLOAD %s' % pathname)
+            for pathname in self.content_to_delete_locally[:MAXDELETE_IN_LOG]:
+                self.logger.info(u'    DELETE LOCAL %s' % pathname)
 
     def generate_downlink_events(self):
         """
@@ -271,27 +277,17 @@ class StartupSynchronization(object):
         have been changed on the storage.
         """
         for pathname in self.content_to_download:
-            assert pathname.__class__.__name__ == "unicode", u"pathname %s is not unicode" % repr(pathname)
+
+            assert pathname.__class__.__name__ == "unicode", \
+                u"pathname %s is not unicode" % repr(pathname)
+
             event = PathnameEvent(
                 'UPDATE_FROM_REMOTE', pathname,
                 self.remote_size[pathname],
                 self.remote_lmtime[pathname],
                 self.remote_etag[pathname],
-                conflicted = pathname in self.edit_conflicts)
+                conflicted=(pathname in self.edit_conflicts))
             self.events_queue.put(event)
-
-##    def generate_uplink_events(self):
-##        '''
-##        Step 2: enqueue upload and delete operations.
-##        Pre: self.prepare_synchronization has been called
-##        '''
-##        for pathname in self.content_to_delete:
-##            self.events_queue.add(('DELETE', pathname))
-##        for pathname in self.content_to_upload:
-##            if self.storage_cache.exist_record(pathname):
-##                self.events_queue.add(('UPDATE', pathname))
-##            else:
-##                self.events_queue.add(('CREATE', pathname))
 
     def _get_last_session_content(self, interruption):
         """
@@ -308,11 +304,8 @@ class StartupSynchronization(object):
             self.last_session_storage_etag[pathname] = storage_etag
         return content
 
-    def _get_local_content(self, filter_on, interruption):
+    def _get_local_content(self, interruption):
         """
-        @param filter_on:
-                    Any pathname that is not also in this set must be
-                    ignored.
         @param interruption:
                     An event object telling if someone in the
                     application has requested this method to interrupt.
@@ -323,7 +316,6 @@ class StartupSynchronization(object):
         content = set()
         pathnames = self.warebox.get_content(blacklisted=True,
                                              interruption=interruption)
-        pathnames = set(pathnames).intersection(filter_on)
 
         for pathname in pathnames:
             if interruption.is_set():
@@ -363,7 +355,8 @@ class StartupSynchronization(object):
         for record in storage_content:
             pathname = record['key']
             etag = record['etag']
-            lmtime = datetime.strptime(record['lmtime'], '%Y-%m-%dT%H:%M:%S.000Z')
+            lmtime = datetime.strptime(record['lmtime'],
+                                       '%Y-%m-%dT%H:%M:%S.000Z')
             size = int(record['size'])
             self.remote_lmtime[pathname] = lmtime
             self.remote_size[pathname] = size
@@ -374,19 +367,21 @@ class StartupSynchronization(object):
     def _detect_local_changes(self, last_session_content, local_content):
         """Detect the offline changes made to the warebox.
         """
-        return self._detect_changes(
-                        last_session_content, local_content,
-                        self.local_etag, self.last_session_warebox_etag)
+        return self._detect_changes(last_session_content,
+                                    local_content,
+                                    self.local_etag,
+                                    self.last_session_warebox_etag)
 
     def _detect_remote_changes(self, last_session_content, remote_content):
         """Detect the offline changes made to the storage.
         """
-        return self._detect_changes(
-                        last_session_content, remote_content,
-                        self.remote_etag, self.last_session_storage_etag)
+        return self._detect_changes(last_session_content,
+                                    remote_content,
+                                    self.remote_etag,
+                                    self.last_session_storage_etag)
 
-    def _detect_changes(self,
-                content_from, content_to, etag_map, last_session_etag_map):
+    def _detect_changes(self, content_from, content_to,
+                        etag_map, last_session_etag_map):
         """Detect the update and delete operations necessary to change
         content_from into content_to.
 
@@ -440,11 +435,13 @@ class StartupSynchronization(object):
         content_to_download.difference_update(redundant_transfers)
         return conflicts, redundant_transfers
 
-    def _detect_deletion_conflicts(self, content_to_upload, content_to_delete_locally):
+    def _detect_deletion_conflicts(self,
+                                   content_to_upload,
+                                   content_to_delete_locally):
         """Detect deletion conflicts between uploads and remote deletions.
 
-        A pathname is a "delete conflict" if it's been modified in
-        the warebox and delete from the storage. A modified pathname
+        A pathname is a "delete conflict" if it's been both modified in
+        the warebox and deleted from the storage. A modified pathname
         could be a delete conflict also because an ancestor of him
         (and thus the whole subtree) have been deleted from the storage.
 
@@ -455,10 +452,12 @@ class StartupSynchronization(object):
         @return
                     Set of pathnames that are deletion conflicts.
         """
-        # Deletion conflicts are more complex than others, because they must be extended to folders' content
+        # Deletion conflicts are more complex than others, because they must
+        # be extended to folders' content
         conflicts = set()
         for pathname in content_to_delete_locally:
-            conflicts.update(set(filter(lambda p: p.startswith(pathname), content_to_upload)))
+            confl = [p for p in content_to_upload if p.startswith(pathname)]
+            conflicts.update(set(confl))
         return conflicts
 
 

@@ -166,13 +166,23 @@ class UIController(object):
         @param infos:
                 Dictionary with the following keys: last_commit_client_id,
                 last_commit_client_hostname, last_commit_client_platform',
-                last_commit_timestamp, used_space, user_quota, basis.
+                last_commit_timestamp, used_space, user_quota, basis,
+                plan, status, expires_on.
         """
         self._logger.debug(
             'Info received from server %s', format_to_log(infos))
-        keys = ['last_commit_client_id', 'last_commit_client_hostname']
-        keys.extend(['last_commit_client_platform', 'last_commit_timestamp'])
-        keys.extend(['used_space', 'user_quota'])
+        keys = [
+            'last_commit_client_id',
+            'last_commit_client_hostname',
+            'last_commit_client_platform',
+            'last_commit_timestamp',
+            'used_space',
+            'user_quota',
+            'plan',
+            'status',
+            'expires_on'
+        ]
+
         for key in keys:
             if not key in infos:
                 infos[key] = None

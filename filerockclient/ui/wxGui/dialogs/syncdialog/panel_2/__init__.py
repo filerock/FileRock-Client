@@ -40,8 +40,10 @@ FileRock Client is licensed under GPLv3 License.
 
 """
 
+import copy
 import os
 import wx
+
 from wx.lib.mixins.listctrl import ListCtrlAutoWidthMixin
 
 from filerockclient.interfaces import PStatuses as Pss
@@ -50,17 +52,22 @@ from filerockclient.ui.wxGui import Messages
 from filerockclient.ui.wxGui.Utils import setBold
 from filerockclient.ui.wxGui.constants import IMAGE_PATH
 
+import wx.lib.agw.ultimatelistctrl as ULC
+#http://xoomer.virgilio.it/infinity77/AGW_Docs/ultimatelistctrl_module.html#ultimatelistctrl
 
-class AutoWidthListCtrl(wx.ListCtrl, ListCtrlAutoWidthMixin):
+class AutoWidthListCtrl(ULC.UltimateListCtrl, ListCtrlAutoWidthMixin):
 
     def __init__(self, parent):
-        wx.ListCtrl.__init__(self, parent, -1, style=wx.LC_REPORT|wx.BORDER_SUNKEN|wx.LC_NO_HEADER)
+        ULC.UltimateListCtrl.__init__(self, parent, -1, agwStyle=ULC.ULC_REPORT|wx.BORDER_SUNKEN|wx.LC_NO_HEADER | ULC.ULC_VIRTUAL| ULC.ULC_SHOW_TOOLTIPS)
         ListCtrlAutoWidthMixin.__init__(self)
         self.InsertColumn(0, Messages.SYNC_PATHNAME_COLUMN_NAME)
         self.InsertColumn(1, Messages.SYNC_SIZE_COLUMN_NAME)
         self.InsertColumn(2, Messages.SYNC_STATE_COLUMN_NAME)
         self.SetColumnWidth(2,  150)
         self.setResizeColumn(0)
+
+        self.item_data_map = {} #pathname: (size, status)
+        self.item_sequence = self.item_data_map.keys()
 
         self.pathname_status_messages = {
             Pss.DOWNLOADNEEDED:    Messages.PSTATUS_DOWNLOADNEEDED,
@@ -85,14 +92,98 @@ class AutoWidthListCtrl(wx.ListCtrl, ListCtrlAutoWidthMixin):
     def compareItem(self, item1, item2):
         return cmp(item2,item1)
 
+        
+    def set_content(self, content):
+        self._content= copy.deepcopy(content)
+        for e in content:
+            if 'newpathname' in e:
+                k = (e[u'pathname'], e[u'newpathname'])
+            else:
+                k = e[u'pathname']
+            st = e[u'status']
+            sz = e[u'size']
+            self.item_data_map[k]=(sz, st)
+        self.SortItems() # this also performs SetItemCount()
+            
+            
+    ############## ListCtrl methods #################
+
+
+    def OnGetItemText(self, index, col):
+        assert index < len(self.item_sequence)
+            
+        k = self.item_sequence[index]
+        
+        # k is either a string (the pathname) or a tuple (pathname, newpathname) for renameing
+        size, status= self.item_data_map[k]
+
+            
+        if col == 0:  # pathname
+            if type(k)==tuple:
+                return k[0]
+            else:
+                return k
+        elif col == 1:  # size
+            return format_bytes(size)
+        elif col == 2:  # status
+            if type(k)==tuple:
+                
+                return k[1]
+            else:
+                return self.pathname_status_messages[status]
+        else:
+            raise ValueError("unexpected column number in callback from wx")
+
+# strange, this is not called, not know how to fix it at the moment
+    def OnGetItemToolTip(self, index, col):
+        assert index < len(self.item_sequence)
+        if col!=2:
+            return None
+        k = self.item_sequence[index]
+        if type(k)==tuple:
+            return k[1]
+        else:
+            return None
+        
+    def OnGetItemTextColour(self, item, col):
+        return None
+    
+    
+    def OnGetItemColumnImage(self, index,column):
+        assert index < len(self.item_sequence)
+        if column!=2:
+            return []
+        
+        pathname = self.item_sequence[index]
+        _ , status = self.item_data_map[pathname]
+        return self.pathname_status_icon[status]
+   
+    
+    def OnGetItemAttr(self, index):
+        return None
+    
+    
+    
+    def SortItems(self,sorter=cmp):
+        items = list(self.item_data_map.keys())
+        items = sorted(items)
+        self.item_sequence = items
+        self.SetItemCount(len(self.item_sequence))
+        # redraw the list
+        self.Refresh()
+
+        
+        
 
 class Panel2(wx.Panel):
     def __init__(self, parent, *args, **kwds):
 #        self._init_ctrls(parent, *args, **kwds)
         wx.Panel.__init__(self, parent, *args, **kwds)
-        self.DEFAULT_LABEL = Messages.SYNC_PANEL_TITLE
+        self.DEFAULT_LABEL = Messages.SYNC_PANEL_TITLE        
         self.sizer_4_staticbox = wx.StaticBox(self, -1, self.DEFAULT_LABEL)
         self.message_label = wx.StaticText(self, -1, '', style=wx.ALIGN_CENTER)
+        self._content=[]
+
         setBold(self.message_label)
         self.activities = AutoWidthListCtrl(self)
         self.__set_properties()
@@ -118,26 +209,11 @@ class Panel2(wx.Panel):
         self.message_label.Show()
         self.Layout()
 
-    def updatePathnameStatus(self, pathname, status, size, newpathname=None):
+    def update_content(self, content):
+        self.activities.set_content(content)
         self.message_label.Hide()
         self.activities.Show()
         self.Layout()
-        index=self.activities.FindItem(-1, pathname)
-        if status in [
-                      Pss.DOWNLOADNEEDED,
-                      Pss.LOCALDELETENEEDED,
-                      Pss.LOCALRENAMENEEDED,
-                      Pss.LOCALCOPYNEEDED,
-                      Pss.UPLOADNEEDED
-                      ]:
-            index = self.activities.InsertStringItem(0, pathname)
-            self.activities.SetStringItem(index, 1, format_bytes(size))
-            if newpathname is None:
-                self.activities.SetStringItem(index, 2, self.activities.pathname_status_messages[status], self.activities.pathname_status_icon[status])
-            else:
-                self.activities.SetStringItem(index, 2, newpathname, self.activities.pathname_status_icon[status])
-            if status in [Pss.LOCALCOPYNEEDED,
-                          Pss.LOCALRENAMENEEDED
-                          ]:
-                self.activities.SetColumnWidth(1,  325)
-                self.Layout()
+
+        
+             

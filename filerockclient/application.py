@@ -104,7 +104,7 @@ class Application(object):
     """
 
     def __init__(self, develop, bugreport, configdir, startupslides,
-                 restartcount, showpanel, interface, cmdline_args,
+                 restartcount,  hardreset_allowed, showpanel, interface, cmdline_args,
                  main_script):
         """
         @param develop:
@@ -123,7 +123,9 @@ class Application(object):
                     introductive slides at application startup.
         @param restartcount:
                     How many times the application has been
-                    recently restarted (usually due to errors).
+                    recently restarted by hardreset (usually due to errors).
+        @param hardreset_allowed:
+                    This says if the resatrt can be performed (exit otherwise)
         @param showpanel:
                     Boolean flag telling whether the GUI panels
                     should automatically appear at application startup.
@@ -146,6 +148,7 @@ class Application(object):
         self.configdir = configdir
         self.startupslides = startupslides
         self.restartcount = restartcount
+        self.hardreset_allowed = hardreset_allowed
         self.showpanel = showpanel
         self.interface = interface
         self.cmdline_args = cmdline_args
@@ -776,7 +779,14 @@ class Application(object):
         of restart/termination. However is very useful to recover from
         critical errors, where nothing else could be done.
         When successful, this call doesn't return.
+
+        If hard reset is not allowed (by constructor parameter 
+        of this application object), it exits abrubptly.
         """
+        
+        if not self.hardreset_allowed:
+            sys.exit(666)
+        
         logger.info(u'\n\n-----------\n' +
             'Restarting FileRock, please wait...\n-----------\n')
 

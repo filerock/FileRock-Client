@@ -59,7 +59,12 @@ WIDGETS = {
                                                    style=wx.CB_READONLY),
         u'bandwidth_limit': lambda parent,
                                   val,
-                                  panel: Bandwidth_limit(val, parent, panel)
+                                  panel: Bandwidth_limit(val, parent, panel),
+                                  
+        u'show_logs_window': lambda parent,
+                                  val,
+                                  panel: LogsButton(parent)
+                                  
     },
     u"User Defined Options": {
         u'launch_on_startup': lambda parent, val, _: CheckBox(val, parent),

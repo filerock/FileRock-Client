@@ -70,11 +70,11 @@ class MainWindow(wx.Frame):
         self.preferences_label = wx.StaticText(self, -1, "Options")
         self.start_stop_bitmap_button = wx.BitmapButton(self, -1, wx.Bitmap(self._image_path("GUI-icons/pause-48-tango.png"), wx.BITMAP_TYPE_ANY))
         self.start_stop_label = wx.StaticText(self, -1, "Pause")
-        self.logs_bitmap_button = wx.BitmapButton(self, -1, wx.Bitmap(self._image_path("GUI-icons/logs-48.png"), wx.BITMAP_TYPE_ANY), style=wx.BU_AUTODRAW)
-        self.logs_label = wx.StaticText(self, -1, "Logs")
+        #self.logs_bitmap_button = wx.BitmapButton(self, -1, wx.Bitmap(self._image_path("GUI-icons/logs-48.png"), wx.BITMAP_TYPE_ANY), style=wx.BU_AUTODRAW)
+        #self.logs_label = wx.StaticText(self, -1, "Logs")
         self.space_ctrl = MywxStaticText(self, -1, "--- Mb of -- Gb")
         self.used_space_bar = wx.Gauge(self, -1, 1000)
-        self.get_more_space_button = wx.Button(self, -1, "Get More Space", style=wx.BU_EXACTFIT)
+        self.get_more_space_button = wx.Button(self, -1, "Upgrade", style=wx.BU_EXACTFIT)
 
         self.__set_properties()
         self.__do_layout()
@@ -84,7 +84,7 @@ class MainWindow(wx.Frame):
         self.Bind(wx.EVT_BUTTON, self.OnActivityClick, self.activity_bitmap_button)
         self.Bind(wx.EVT_BUTTON, self.OnPreferencesClick, self.preferences_bitmap_button)
         self.Bind(wx.EVT_BUTTON, self.OnStartStop, self.start_stop_bitmap_button)
-        self.Bind(wx.EVT_BUTTON, self.OnLogsClick, self.logs_bitmap_button)
+        #self.Bind(wx.EVT_BUTTON, self.OnLogsClick, self.logs_bitmap_button)
         self.Bind(wx.EVT_BUTTON, self.OnGetMoreSpace, self.get_more_space_button)
         # end wxGlade
 
@@ -109,7 +109,7 @@ class MainWindow(wx.Frame):
         self.activity_bitmap_button.SetSize(self.activity_bitmap_button.GetBestSize())
         self.preferences_bitmap_button.SetSize(self.preferences_bitmap_button.GetBestSize())
         self.start_stop_bitmap_button.SetSize(self.start_stop_bitmap_button.GetBestSize())
-        self.logs_bitmap_button.SetSize(self.logs_bitmap_button.GetBestSize())
+        #self.logs_bitmap_button.SetSize(self.logs_bitmap_button.GetBestSize())
         # end wxGlade
 
     def __do_layout(self):
@@ -119,8 +119,11 @@ class MainWindow(wx.Frame):
         sizer_3_copy = wx.FlexGridSizer(1, 3, 0, 7)
         sizer_4 = wx.BoxSizer(wx.HORIZONTAL)
         sizer_2 = wx.BoxSizer(wx.VERTICAL)
-        grid_sizer_4 = wx.GridSizer(1, 6, 0, 10)
-        sizer_10 = wx.BoxSizer(wx.VERTICAL)
+
+        #grid_sizer_4 = wx.GridSizer(1, 6, 0, 10)
+        grid_sizer_4 = wx.GridSizer(1, 5, 0, 10)
+
+        #sizer_10 = wx.BoxSizer(wx.VERTICAL)  # this is the "Logs" button to be removed
         sizer_11 = wx.BoxSizer(wx.VERTICAL)
         sizer_9 = wx.BoxSizer(wx.VERTICAL)
         sizer_7 = wx.BoxSizer(wx.VERTICAL)
@@ -141,9 +144,11 @@ class MainWindow(wx.Frame):
         sizer_11.Add(self.start_stop_bitmap_button, 0, wx.ALIGN_CENTER_HORIZONTAL, 0)
         sizer_11.Add(self.start_stop_label, 0, wx.TOP|wx.BOTTOM|wx.ALIGN_CENTER_HORIZONTAL, 5)
         grid_sizer_4.Add(sizer_11, 0, wx.EXPAND, 5)
-        sizer_10.Add(self.logs_bitmap_button, 0, wx.ALIGN_CENTER_HORIZONTAL, 0)
-        sizer_10.Add(self.logs_label, 0, wx.TOP|wx.BOTTOM|wx.ALIGN_CENTER_HORIZONTAL|wx.ALIGN_CENTER_VERTICAL, 5)
-        grid_sizer_4.Add(sizer_10, 0, wx.EXPAND, 0)
+        
+        #sizer_10.Add(self.logs_bitmap_button, 0, wx.ALIGN_CENTER_HORIZONTAL, 0)
+        #sizer_10.Add(self.logs_label, 0, wx.TOP|wx.BOTTOM|wx.ALIGN_CENTER_HORIZONTAL|wx.ALIGN_CENTER_VERTICAL, 5)
+        #grid_sizer_4.Add(sizer_10, 0, wx.EXPAND, 0)
+
         sizer_2.Add(grid_sizer_4, 0, wx.LEFT|wx.RIGHT|wx.TOP|wx.ALIGN_CENTER_HORIZONTAL, 15)
         sizer_1.Add(sizer_2, 1, wx.LEFT|wx.RIGHT|wx.EXPAND, 10)
         sizer_3_copy.Add(self.space_ctrl, 0, wx.ALIGN_CENTER_VERTICAL, 0)

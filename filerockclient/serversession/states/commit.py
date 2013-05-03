@@ -302,9 +302,6 @@ class CommitStartState(ServerSessionState):
         # TODO: The server is sending ERROR instead of COMMIT_ERROR
         self._handle_message_COMMIT_ERROR(message)
 
-    def _handle_command_WORKERFREE(self, command):
-        self._context.listening_operations = True
-
     def _handle_command_USERCOMMIT(self, message):
         """Any further commit command is redundant here.
         """

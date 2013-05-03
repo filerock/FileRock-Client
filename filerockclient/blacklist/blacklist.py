@@ -61,7 +61,9 @@ class Blacklist(object):
         compiled = re.compile(expr)
         self._blacklist = set([compiled])
         self.blacklisted_path = set()
-#        self.log.debug('Blacklist initialized with the following patterns %s', format_to_log(escaped))
+        self.allowed_paths=set()
+        #self.log.debug('Blacklist initialized with the following patterns %s', format_to_log(escaped))
+
 
     def _unify_escaped(self, escaped):
         """
@@ -125,13 +127,21 @@ class Blacklist(object):
 #                        format_to_log(pathname),
 #                        format_to_log(self._blacklist)
 #                        )
+
+
+
         if pathname in self.blacklisted_path:
             return True
+        if pathname in self.allowed_paths:
+            return False
+        
         matches = map(lambda p: self._check_match(p, pathname),self._blacklist)
+
         if reduce(lambda x, y: x or y, matches, False):
             self.blacklisted_path.add(pathname)
             return True
         else:
+            self.allowed_paths.add(pathname)
             return False
 
     def _add_expressions(self, expressions=[]):

@@ -138,9 +138,11 @@ class AbstractCache(object):
         self.recreated = False
         # Note: self.schema is a property object
         self.schema = table_schema
-        self._check_schema()
+        self._check_schema() # possibly creating the table if it does not exist
         # Note: self.key is a property object
         self.key = key
+        self._create_index_if_needed()
+        
         # Remember not to vacuum from any other method than the constructor,
         # since it makes any open transaction commit!
         self._execute("VACUUM")
@@ -213,6 +215,20 @@ class AbstractCache(object):
                 u"because no valid database could be found.")
             self._initialize_new()
             self.recreated = True
+
+    def _create_index_if_needed(self):
+        """Assuming the database is there and the schema is ok, 
+        it add a key index if it is not present."""
+
+        data=self._query(u"SELECT sql FROM sqlite_master "
+                         u"WHERE type='index' and name=?", 
+                         [self._key+"_index"])
+        
+        if len(data)==0:
+            self.logger.debug("adding index to %s" % self._table_name)
+            self._execute(u'CREATE INDEX "%s_index" on %s (%s ASC)' %
+                      (self._key, self._table_name, self._key))
+
 
     def _initialize_new(self):
         """Initialize a new database table.

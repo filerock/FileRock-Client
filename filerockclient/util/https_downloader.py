@@ -96,8 +96,8 @@ def download_file(host, ca_chain, target, download_path = None):
 
 def _get_download_filename(save_as, response_headers, target='download'):
     ''' Returns the filename to be used for saving the downloaded file '''
-    if save_as is not None: return save_as
-    # response_headers['content-disposition'] is like 'attachment; filename=FileRock-beta-0.1.8025.msi'
+    if save_as is not None: 
+        return save_as
     else:
         for header, value in response_headers:
             if header == 'content-disposition':

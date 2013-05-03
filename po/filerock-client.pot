@@ -8,25 +8,21 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2013-01-10 17:30+0100\n"
+"POT-Creation-Date: 2013-04-22 18:19+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
 "Language: \n"
 "MIME-Version: 1.0\n"
-"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Type: text/plain; charset=CHARSET\n"
 "Content-Transfer-Encoding: 8bit\n"
 
-#. langen = gettext.translation("FileRock", "./data/locale",languages=[#"it",
-#. "en"])
-#. langen.install()
-#. _ = langen.gettext
 #. ### SYSTRAY MESSAGES #####
-#: ../filerockclient/ui/wxGui/Messages.py:55
+#: ../filerockclient/ui/wxGui/Messages.py:61
 msgid "Please logout"
 msgstr ""
 
-#: ../filerockclient/ui/wxGui/Messages.py:56
+#: ../filerockclient/ui/wxGui/Messages.py:62
 msgid ""
 "\n"
 "FileRock client has detected that you are using Ubuntu with Unity "
@@ -35,11 +31,11 @@ msgid ""
 "and login again.\n"
 msgstr ""
 
-#: ../filerockclient/ui/wxGui/Messages.py:62
+#: ../filerockclient/ui/wxGui/Messages.py:68
 msgid "Disk quota exceeded"
 msgstr ""
 
-#: ../filerockclient/ui/wxGui/Messages.py:63
+#: ../filerockclient/ui/wxGui/Messages.py:69
 #, python-format
 msgid ""
 "We are sorry, FileRock couldn't synchronize your file since it is too large "
@@ -51,21 +47,21 @@ msgid ""
 "more space on www.filerock.com!"
 msgstr ""
 
-#: ../filerockclient/ui/wxGui/Messages.py:69
+#: ../filerockclient/ui/wxGui/Messages.py:75
 msgid "Attention"
 msgstr ""
 
-#: ../filerockclient/ui/wxGui/Messages.py:70
+#: ../filerockclient/ui/wxGui/Messages.py:76
 msgid ""
 "Client found an file named \"encrypted\" in the FileRock Folder.\n"
 "Please, rename it and press OK."
 msgstr ""
 
-#: ../filerockclient/ui/wxGui/Messages.py:74
+#: ../filerockclient/ui/wxGui/Messages.py:80
 msgid "Another Client Connected"
 msgstr ""
 
-#: ../filerockclient/ui/wxGui/Messages.py:75
+#: ../filerockclient/ui/wxGui/Messages.py:81
 #, python-format
 msgid ""
 "Client number %(client_id)s from computer %(client_hostname)s already "
@@ -73,41 +69,41 @@ msgid ""
 "Press OK to disconnect the other client"
 msgstr ""
 
-#: ../filerockclient/ui/wxGui/Messages.py:80
-#: ../filerockclient/ui/wxGui/Messages.py:90
+#: ../filerockclient/ui/wxGui/Messages.py:86
+#: ../filerockclient/ui/wxGui/Messages.py:96
 msgid "New version available"
 msgstr ""
 
-#: ../filerockclient/ui/wxGui/Messages.py:81
+#: ../filerockclient/ui/wxGui/Messages.py:87
 #, python-format
 msgid ""
 "A new version of FileRock is available (%(latest_version)s).\n"
-"Press OK to install.\n"
-"(This may take a few minutes, please be patient)\n"
-msgstr ""
-
-#: ../filerockclient/ui/wxGui/Messages.py:85
-#: ../filerockclient/ui/wxGui/Messages.py:95
-msgid "Upgrade required"
-msgstr ""
-
-#: ../filerockclient/ui/wxGui/Messages.py:86
-#, python-format
-msgid ""
-"FileRock requires to be upgraded to the latest version "
-"(%(latest_version)s).\n"
 "Press OK to install.\n"
 "(This may take a few minutes, please be patient)\n"
 msgstr ""
 
 #: ../filerockclient/ui/wxGui/Messages.py:91
+#: ../filerockclient/ui/wxGui/Messages.py:101
+msgid "Upgrade required"
+msgstr ""
+
+#: ../filerockclient/ui/wxGui/Messages.py:92
+#, python-format
+msgid ""
+"FileRock requires to be upgraded to the latest version "
+"(%(latest_version)s).\n"
+"Press OK to install.\n"
+"(This may take a few minutes, please be patient)\n"
+msgstr ""
+
+#: ../filerockclient/ui/wxGui/Messages.py:97
 #, python-format
 msgid ""
 "A new version of FileRock is available (%(latest_version)s).\n"
 "Please download it from %(download_url)s \n"
 msgstr ""
 
-#: ../filerockclient/ui/wxGui/Messages.py:96
+#: ../filerockclient/ui/wxGui/Messages.py:102
 #, python-format
 msgid ""
 "FileRock requires to be upgraded to the latest version "
@@ -115,31 +111,31 @@ msgid ""
 "Please download it from %(download_url)s \n"
 msgstr ""
 
-#: ../filerockclient/ui/wxGui/Messages.py:100
+#: ../filerockclient/ui/wxGui/Messages.py:106
 msgid "encrypted dir deleted"
 msgstr ""
 
-#: ../filerockclient/ui/wxGui/Messages.py:101
+#: ../filerockclient/ui/wxGui/Messages.py:107
 msgid ""
 "The \"encrypted\" folder has been deleted. FileRock will automatically re-"
 "create it."
 msgstr ""
 
-#: ../filerockclient/ui/wxGui/Messages.py:105
+#: ../filerockclient/ui/wxGui/Messages.py:111
 msgid "Please upgrade"
 msgstr ""
 
-#: ../filerockclient/ui/wxGui/Messages.py:106
+#: ../filerockclient/ui/wxGui/Messages.py:112
 msgid ""
 "Your current version of FileRock has become unsupported, please upgrade "
 "before connecting to the service."
 msgstr ""
 
-#: ../filerockclient/ui/wxGui/Messages.py:110
+#: ../filerockclient/ui/wxGui/Messages.py:116
 msgid "Quit request"
 msgstr ""
 
-#: ../filerockclient/ui/wxGui/Messages.py:111
+#: ../filerockclient/ui/wxGui/Messages.py:117
 #, python-format
 msgid ""
 "Another client forced your disconnection.\n"
@@ -151,15 +147,15 @@ msgid ""
 "- Connected from IP Address: %(client_ip)s"
 msgstr ""
 
-#: ../filerockclient/ui/wxGui/Messages.py:118
+#: ../filerockclient/ui/wxGui/Messages.py:124
 msgid "Service currently unavailable, please try later."
 msgstr ""
 
-#: ../filerockclient/ui/wxGui/Messages.py:120
+#: ../filerockclient/ui/wxGui/Messages.py:126
 msgid "Detected unknown files on storage"
 msgstr ""
 
-#: ../filerockclient/ui/wxGui/Messages.py:121
+#: ../filerockclient/ui/wxGui/Messages.py:127
 msgid ""
 "The following files are blacklisted by FileRock, but they have been detected "
 "on remote storage. \n"
@@ -168,87 +164,86 @@ msgid ""
 msgstr ""
 
 #. #### MAINWINDOW #####
-#: ../filerockclient/ui/wxGui/Messages.py:129
+#: ../filerockclient/ui/wxGui/Messages.py:135
 #, python-format
 msgid "%(used_space)s of %(user_quota)s"
 msgstr ""
 
-#: ../filerockclient/ui/wxGui/Messages.py:130
+#: ../filerockclient/ui/wxGui/Messages.py:136
 #, python-format
 msgid "Used %(used_space_in_mega)s MB"
 msgstr ""
 
-#: ../filerockclient/ui/wxGui/Messages.py:131
+#: ../filerockclient/ui/wxGui/Messages.py:137
 msgid "Used Space"
 msgstr ""
 
-#: ../filerockclient/ui/wxGui/Messages.py:132
+#: ../filerockclient/ui/wxGui/Messages.py:138
 msgid "Info"
 msgstr ""
 
-#: ../filerockclient/ui/wxGui/Messages.py:134
-#: ../filerockclient/ui/wxGui/Messages.py:172
+#: ../filerockclient/ui/wxGui/Messages.py:140
+#: ../filerockclient/ui/wxGui/Messages.py:180
 msgid "Status"
 msgstr ""
 
-#: ../filerockclient/ui/wxGui/Messages.py:135
+#: ../filerockclient/ui/wxGui/Messages.py:141
 msgid "Display the status of your files"
 msgstr ""
 
-#: ../filerockclient/ui/wxGui/Messages.py:136
+#: ../filerockclient/ui/wxGui/Messages.py:142
 msgid "Start"
 msgstr ""
 
-#: ../filerockclient/ui/wxGui/Messages.py:137
-#: ../filerockclient/ui/wxGui/Messages.py:200
+#: ../filerockclient/ui/wxGui/Messages.py:143
+#: ../filerockclient/ui/wxGui/Messages.py:210
 msgid "Pause"
 msgstr ""
 
-#: ../filerockclient/ui/wxGui/Messages.py:138
+#: ../filerockclient/ui/wxGui/Messages.py:144
 msgid "Disconnecting"
 msgstr ""
 
-#: ../filerockclient/ui/wxGui/Messages.py:139
+#: ../filerockclient/ui/wxGui/Messages.py:145
 msgid "Connecting"
 msgstr ""
 
 #. #### MAINWINDOW PANEL2 #####
-#: ../filerockclient/ui/wxGui/Messages.py:141
-#: ../filerockclient/ui/wxGui/Messages.py:177
-#: ../filerockclient/ui/wxGui/Messages.py:262
+#: ../filerockclient/ui/wxGui/Messages.py:147
+#: ../filerockclient/ui/wxGui/Messages.py:185
 msgid "Activities"
 msgstr ""
 
-#: ../filerockclient/ui/wxGui/Messages.py:142
+#: ../filerockclient/ui/wxGui/Messages.py:148
 msgid "Show FileRock activities in progress"
 msgstr ""
 
-#: ../filerockclient/ui/wxGui/Messages.py:144
-#: ../filerockclient/ui/wxGui/Messages.py:190
+#: ../filerockclient/ui/wxGui/Messages.py:150
+#: ../filerockclient/ui/wxGui/Messages.py:198
 msgid "Options"
 msgstr ""
 
-#: ../filerockclient/ui/wxGui/Messages.py:145
+#: ../filerockclient/ui/wxGui/Messages.py:151
 msgid "Edit your FileRock preferences"
 msgstr ""
 
-#: ../filerockclient/ui/wxGui/Messages.py:147
+#: ../filerockclient/ui/wxGui/Messages.py:153
 msgid "Logs"
 msgstr ""
 
-#: ../filerockclient/ui/wxGui/Messages.py:148
+#: ../filerockclient/ui/wxGui/Messages.py:154
 msgid "Open FileRock Log viewer"
 msgstr ""
 
-#: ../filerockclient/ui/wxGui/Messages.py:149
-msgid "Get More Space"
+#: ../filerockclient/ui/wxGui/Messages.py:155
+msgid "Upgrade"
 msgstr ""
 
-#: ../filerockclient/ui/wxGui/Messages.py:151
+#: ../filerockclient/ui/wxGui/Messages.py:157
 msgid "FileRock"
 msgstr ""
 
-#: ../filerockclient/ui/wxGui/Messages.py:152
+#: ../filerockclient/ui/wxGui/Messages.py:158
 msgid ""
 "Click here to stop or restart FileRock.\n"
 "When FileRock is stopped, the synchronization will be interrupted, hence the "
@@ -256,7 +251,7 @@ msgid ""
 msgstr ""
 
 #. #### MAINWINDOW PANEL1 #####
-#: ../filerockclient/ui/wxGui/Messages.py:158
+#: ../filerockclient/ui/wxGui/Messages.py:164
 msgid ""
 "This robot is a graphic visualization\n"
 "of the hash generated by your files,\n"
@@ -266,227 +261,247 @@ msgid ""
 "See our FAQs for a more detailed explanation."
 msgstr ""
 
-#: ../filerockclient/ui/wxGui/Messages.py:166
-#: ../filerockclient/ui/wxGui/Messages.py:222
-msgid "Username:"
-msgstr ""
-
-#: ../filerockclient/ui/wxGui/Messages.py:167
-msgid "Client n°:"
-msgstr ""
-
-#: ../filerockclient/ui/wxGui/Messages.py:168
-msgid "Hostname:"
-msgstr ""
-
-#: ../filerockclient/ui/wxGui/Messages.py:169
-msgid "Version:"
-msgstr ""
-
-#: ../filerockclient/ui/wxGui/Messages.py:170
-msgid "Client Status:"
+#: ../filerockclient/ui/wxGui/Messages.py:172
+#: ../filerockclient/ui/wxGui/Messages.py:306
+msgid "Username"
 msgstr ""
 
 #: ../filerockclient/ui/wxGui/Messages.py:173
+msgid "Plan"
+msgstr ""
+
+#: ../filerockclient/ui/wxGui/Messages.py:174
+msgid "Expiration Date"
+msgstr ""
+
+#: ../filerockclient/ui/wxGui/Messages.py:175
+msgid "Hostname"
+msgstr ""
+
+#: ../filerockclient/ui/wxGui/Messages.py:176
+msgid "Client No."
+msgstr ""
+
+#: ../filerockclient/ui/wxGui/Messages.py:177
+msgid "Software Ver."
+msgstr ""
+
+#: ../filerockclient/ui/wxGui/Messages.py:178
+msgid "Client Status"
+msgstr ""
+
+#: ../filerockclient/ui/wxGui/Messages.py:181
 msgid "Last Commit Time:"
 msgstr ""
 
 #. ##### MISC ###########
-#: ../filerockclient/ui/wxGui/Messages.py:174
-#: ../filerockclient/ui/wxGui/Messages.py:241
-#: ../filerockclient/ui/wxGui/Messages.py:287
+#: ../filerockclient/ui/wxGui/Messages.py:182
+#: ../filerockclient/ui/wxGui/Messages.py:251
+#: ../filerockclient/ui/wxGui/Messages.py:301
 msgid "Unknown"
 msgstr ""
 
-#: ../filerockclient/ui/wxGui/Messages.py:178
-#: ../filerockclient/ui/wxGui/Messages.py:259
+#: ../filerockclient/ui/wxGui/Messages.py:186
+#: ../filerockclient/ui/wxGui/Messages.py:269
 msgid "Pathname"
 msgstr ""
 
-#: ../filerockclient/ui/wxGui/Messages.py:179
-#: ../filerockclient/ui/wxGui/Messages.py:261
+#: ../filerockclient/ui/wxGui/Messages.py:187
+#: ../filerockclient/ui/wxGui/Messages.py:271
 msgid "State"
 msgstr ""
 
 #. PANEL2_ACTIVEOPERATION = _(u"\
 #. %(activeOperation)s / %(totalOperation)s in progress")
-#: ../filerockclient/ui/wxGui/Messages.py:182
+#: ../filerockclient/ui/wxGui/Messages.py:190
 #, python-format
 msgid "Activities: %(totalOperation)s ongoing"
 msgstr ""
 
-#: ../filerockclient/ui/wxGui/Messages.py:183
+#: ../filerockclient/ui/wxGui/Messages.py:191
 #, python-format
 msgid "... and %(cachedOperation)s more."
 msgstr ""
 
 #. #### MAINWINDOW PANEL3 #####
-#: ../filerockclient/ui/wxGui/Messages.py:187
+#: ../filerockclient/ui/wxGui/Messages.py:195
 msgid "key"
 msgstr ""
 
-#: ../filerockclient/ui/wxGui/Messages.py:188
+#: ../filerockclient/ui/wxGui/Messages.py:196
 msgid "value"
 msgstr ""
 
-#: ../filerockclient/ui/wxGui/Messages.py:189
+#: ../filerockclient/ui/wxGui/Messages.py:197
 msgid "User"
 msgstr ""
 
+#: ../filerockclient/ui/wxGui/Messages.py:199
+msgid "Advanced"
+msgstr ""
+
+#: ../filerockclient/ui/wxGui/Messages.py:200
+msgid "Basic"
+msgstr ""
+
 #. #### TBICON MENU #####
-#: ../filerockclient/ui/wxGui/Messages.py:193
+#: ../filerockclient/ui/wxGui/Messages.py:203
 msgid "Force Commit"
 msgstr ""
 
-#: ../filerockclient/ui/wxGui/Messages.py:194
+#: ../filerockclient/ui/wxGui/Messages.py:204
 msgid "Open FileRock panel"
 msgstr ""
 
-#: ../filerockclient/ui/wxGui/Messages.py:195
+#: ../filerockclient/ui/wxGui/Messages.py:205
 msgid "Open FileRock options"
 msgstr ""
 
-#: ../filerockclient/ui/wxGui/Messages.py:196
+#: ../filerockclient/ui/wxGui/Messages.py:206
 msgid "Open FileRock folder"
 msgstr ""
 
-#: ../filerockclient/ui/wxGui/Messages.py:197
+#: ../filerockclient/ui/wxGui/Messages.py:207
 msgid "Send us feedback"
 msgstr ""
 
-#: ../filerockclient/ui/wxGui/Messages.py:198
+#: ../filerockclient/ui/wxGui/Messages.py:208
 msgid "Open FileRock website"
 msgstr ""
 
-#: ../filerockclient/ui/wxGui/Messages.py:199
+#: ../filerockclient/ui/wxGui/Messages.py:209
 msgid "Open log viewer"
 msgstr ""
 
-#: ../filerockclient/ui/wxGui/Messages.py:201
+#: ../filerockclient/ui/wxGui/Messages.py:211
 msgid "Reconnect"
 msgstr ""
 
-#: ../filerockclient/ui/wxGui/Messages.py:202
+#: ../filerockclient/ui/wxGui/Messages.py:212
 msgid "Quit"
 msgstr ""
 
-#: ../filerockclient/ui/wxGui/Messages.py:203
+#: ../filerockclient/ui/wxGui/Messages.py:213
 msgid "Help"
 msgstr ""
 
 #. #### GSTATUS MESSAGES ####
-#: ../filerockclient/ui/wxGui/Messages.py:206
+#: ../filerockclient/ui/wxGui/Messages.py:216
 msgid "Connecting..."
 msgstr ""
 
-#: ../filerockclient/ui/wxGui/Messages.py:207
+#: ../filerockclient/ui/wxGui/Messages.py:217
 msgid "Stopped"
 msgstr ""
 
-#: ../filerockclient/ui/wxGui/Messages.py:208
+#: ../filerockclient/ui/wxGui/Messages.py:218
 msgid "Can't connect to server, retrying..."
 msgstr ""
 
-#: ../filerockclient/ui/wxGui/Messages.py:209
+#: ../filerockclient/ui/wxGui/Messages.py:219
 msgid "Another client is connected"
 msgstr ""
 
-#: ../filerockclient/ui/wxGui/Messages.py:210
+#: ../filerockclient/ui/wxGui/Messages.py:220
 msgid "Authentication failed"
 msgstr ""
 
-#: ../filerockclient/ui/wxGui/Messages.py:211
+#: ../filerockclient/ui/wxGui/Messages.py:221
 msgid "Ok!"
 msgstr ""
 
-#: ../filerockclient/ui/wxGui/Messages.py:212
+#: ../filerockclient/ui/wxGui/Messages.py:222
 msgid "Synchronizing data"
 msgstr ""
 
-#: ../filerockclient/ui/wxGui/Messages.py:213
+#: ../filerockclient/ui/wxGui/Messages.py:223
 msgid "Service busy"
 msgstr ""
 
-#: ../filerockclient/ui/wxGui/Messages.py:214
+#: ../filerockclient/ui/wxGui/Messages.py:224
 msgid "Critical error"
 msgstr ""
 
-#: ../filerockclient/ui/wxGui/Messages.py:215
+#: ../filerockclient/ui/wxGui/Messages.py:225
 msgid "ERROR - broken proof"
 msgstr ""
 
-#: ../filerockclient/ui/wxGui/Messages.py:216
+#: ../filerockclient/ui/wxGui/Messages.py:226
 msgid "ERROR - client and server do not agree on hash"
 msgstr ""
 
 #. #### LINK DIALOG #####
-#: ../filerockclient/ui/wxGui/Messages.py:220
+#: ../filerockclient/ui/wxGui/Messages.py:230
 msgid "Login"
 msgstr ""
 
-#: ../filerockclient/ui/wxGui/Messages.py:221
+#: ../filerockclient/ui/wxGui/Messages.py:231
 msgid "Please insert your FileRock credentials"
 msgstr ""
 
-#: ../filerockclient/ui/wxGui/Messages.py:223
+#: ../filerockclient/ui/wxGui/Messages.py:232
+msgid "Username:"
+msgstr ""
+
+#: ../filerockclient/ui/wxGui/Messages.py:233
 msgid "Password:"
 msgstr ""
 
-#: ../filerockclient/ui/wxGui/Messages.py:224
+#: ../filerockclient/ui/wxGui/Messages.py:234
 msgid "Get your free account at"
 msgstr ""
 
-#: ../filerockclient/ui/wxGui/Messages.py:225
+#: ../filerockclient/ui/wxGui/Messages.py:235
 msgid "www.filerock.com"
 msgstr ""
 
-#: ../filerockclient/ui/wxGui/Messages.py:226
+#: ../filerockclient/ui/wxGui/Messages.py:236
 msgid "Configure &Proxy"
 msgstr ""
 
 #. #### LINK MESSAGES #####
-#: ../filerockclient/ui/wxGui/Messages.py:228
+#: ../filerockclient/ui/wxGui/Messages.py:238
 msgid "Linked successfully"
 msgstr ""
 
-#: ../filerockclient/ui/wxGui/Messages.py:229
+#: ../filerockclient/ui/wxGui/Messages.py:239
 msgid "Generating your private/public keys"
 msgstr ""
 
-#: ../filerockclient/ui/wxGui/Messages.py:230
+#: ../filerockclient/ui/wxGui/Messages.py:240
 msgid "Linking server unreachable"
 msgstr ""
 
-#: ../filerockclient/ui/wxGui/Messages.py:231
+#: ../filerockclient/ui/wxGui/Messages.py:241
 msgid "Sending Linking credential..."
 msgstr ""
 
-#: ../filerockclient/ui/wxGui/Messages.py:232
+#: ../filerockclient/ui/wxGui/Messages.py:242
 msgid "Linking server error"
 msgstr ""
 
-#: ../filerockclient/ui/wxGui/Messages.py:233
+#: ../filerockclient/ui/wxGui/Messages.py:243
 msgid "Wrong user credentials"
 msgstr ""
 
-#: ../filerockclient/ui/wxGui/Messages.py:234
+#: ../filerockclient/ui/wxGui/Messages.py:244
 msgid "Malformed username"
 msgstr ""
 
-#: ../filerockclient/ui/wxGui/Messages.py:235
+#: ../filerockclient/ui/wxGui/Messages.py:245
 msgid "Linking Failed, try again..."
 msgstr ""
 
-#: ../filerockclient/ui/wxGui/Messages.py:236
+#: ../filerockclient/ui/wxGui/Messages.py:246
 msgid "Unknow Linking error"
 msgstr ""
 
 #. #### SYNC DIALOG #####
-#: ../filerockclient/ui/wxGui/Messages.py:240
+#: ../filerockclient/ui/wxGui/Messages.py:250
 msgid "Sync Report"
 msgstr ""
 
-#: ../filerockclient/ui/wxGui/Messages.py:242
+#: ../filerockclient/ui/wxGui/Messages.py:252
 #, python-format
 msgid ""
 "Hash Mismatch detected.\n"
@@ -501,7 +516,7 @@ msgid ""
 "or Cancel to quit."
 msgstr ""
 
-#: ../filerockclient/ui/wxGui/Messages.py:250
+#: ../filerockclient/ui/wxGui/Messages.py:260
 msgid ""
 "There are no necessary operations to be applied,\n"
 "your local data are already aligned with those on FileRock.\n"
@@ -511,157 +526,195 @@ msgid ""
 "therefore the hash will be updated as shown."
 msgstr ""
 
-#: ../filerockclient/ui/wxGui/Messages.py:257
+#: ../filerockclient/ui/wxGui/Messages.py:267
 msgid "Click to learn more about hash mismatch."
 msgstr ""
 
-#: ../filerockclient/ui/wxGui/Messages.py:260
+#: ../filerockclient/ui/wxGui/Messages.py:270
 msgid "Size"
 msgstr ""
 
+#: ../filerockclient/ui/wxGui/Messages.py:272
+msgid "Changes to be applied"
+msgstr ""
+
 #. #### SYNC DIALOG PATHNAME STATUS MESSAGES #####
-#: ../filerockclient/ui/wxGui/Messages.py:266
+#: ../filerockclient/ui/wxGui/Messages.py:276
 msgid "Download"
 msgstr ""
 
-#: ../filerockclient/ui/wxGui/Messages.py:267
+#: ../filerockclient/ui/wxGui/Messages.py:277
 msgid "Delete"
 msgstr ""
 
-#: ../filerockclient/ui/wxGui/Messages.py:268
+#: ../filerockclient/ui/wxGui/Messages.py:278
 msgid "Rename"
 msgstr ""
 
-#: ../filerockclient/ui/wxGui/Messages.py:269
+#: ../filerockclient/ui/wxGui/Messages.py:279
 msgid "Copy"
 msgstr ""
 
-#: ../filerockclient/ui/wxGui/Messages.py:270
+#: ../filerockclient/ui/wxGui/Messages.py:280
 msgid "Upload"
 msgstr ""
 
-#: ../filerockclient/ui/wxGui/Messages.py:271
+#: ../filerockclient/ui/wxGui/Messages.py:281
 msgid "To be uploaded"
 msgstr ""
 
-#: ../filerockclient/ui/wxGui/Messages.py:272
-#: ../filerockclient/ui/wxGui/Messages.py:273
+#: ../filerockclient/ui/wxGui/Messages.py:282
+#: ../filerockclient/ui/wxGui/Messages.py:283
 msgid "Uploading..."
 msgstr ""
 
-#: ../filerockclient/ui/wxGui/Messages.py:274
+#: ../filerockclient/ui/wxGui/Messages.py:284
 msgid "To be downloaded"
 msgstr ""
 
-#: ../filerockclient/ui/wxGui/Messages.py:275
+#: ../filerockclient/ui/wxGui/Messages.py:285
 msgid "Downloading..."
 msgstr ""
 
-#: ../filerockclient/ui/wxGui/Messages.py:276
+#: ../filerockclient/ui/wxGui/Messages.py:286
 msgid "To be Deleted"
 msgstr ""
 
-#: ../filerockclient/ui/wxGui/Messages.py:277
+#: ../filerockclient/ui/wxGui/Messages.py:287
 msgid "Deleting..."
 msgstr ""
 
 #. ##### LOG VIEWER ######
-#: ../filerockclient/ui/wxGui/Messages.py:280
+#: ../filerockclient/ui/wxGui/Messages.py:290
 msgid "FileRock - Logviewer"
 msgstr ""
 
 #. ##### SLIDER DIALOG #####
-#: ../filerockclient/ui/wxGui/Messages.py:283
+#: ../filerockclient/ui/wxGui/Messages.py:293
 msgid "Welcome to FileRock!"
 msgstr ""
 
-#: ../filerockclient/ui/wxGui/Messages.py:284
+#: ../filerockclient/ui/wxGui/Messages.py:294
+msgid "&Next"
+msgstr ""
+
+#: ../filerockclient/ui/wxGui/Messages.py:295
+msgid "&Skip"
+msgstr ""
+
+#: ../filerockclient/ui/wxGui/Messages.py:296
+msgid "&Prev"
+msgstr ""
+
+#: ../filerockclient/ui/wxGui/Messages.py:297
 msgid "Show welcome at startup"
 msgstr ""
 
 #. ##### CONFING LABEL ######
-#: ../filerockclient/ui/wxGui/Messages.py:290
+#: ../filerockclient/ui/wxGui/Messages.py:304
 msgid "Configuration Dir"
 msgstr ""
 
-#: ../filerockclient/ui/wxGui/Messages.py:291
+#: ../filerockclient/ui/wxGui/Messages.py:305
 msgid "Private key"
 msgstr ""
 
-#: ../filerockclient/ui/wxGui/Messages.py:292
-msgid "Username"
-msgstr ""
-
-#: ../filerockclient/ui/wxGui/Messages.py:293
+#: ../filerockclient/ui/wxGui/Messages.py:307
 msgid "Left click on trayicon"
 msgstr ""
 
-#: ../filerockclient/ui/wxGui/Messages.py:294
+#: ../filerockclient/ui/wxGui/Messages.py:308
+#: ../filerockclient/ui/wxGui/Messages.py:350
 msgid "Open FileRock Panel"
 msgstr ""
 
-#: ../filerockclient/ui/wxGui/Messages.py:295
+#: ../filerockclient/ui/wxGui/Messages.py:309
+#: ../filerockclient/ui/wxGui/Messages.py:351
 msgid "Open FileRock Folder"
 msgstr ""
 
-#: ../filerockclient/ui/wxGui/Messages.py:296
+#: ../filerockclient/ui/wxGui/Messages.py:310
 msgid "Temporary Dir"
 msgstr ""
 
-#: ../filerockclient/ui/wxGui/Messages.py:297
+#: ../filerockclient/ui/wxGui/Messages.py:311
 msgid "FileRock folder"
 msgstr ""
 
-#: ../filerockclient/ui/wxGui/Messages.py:298
+#: ../filerockclient/ui/wxGui/Messages.py:312
 msgid "Client ID"
 msgstr ""
 
-#: ../filerockclient/ui/wxGui/Messages.py:299
+#: ../filerockclient/ui/wxGui/Messages.py:313
 msgid "Enable labels (Experimental)"
 msgstr ""
 
-#: ../filerockclient/ui/wxGui/Messages.py:300
+#: ../filerockclient/ui/wxGui/Messages.py:314
 msgid "Use Proxy"
 msgstr ""
 
-#: ../filerockclient/ui/wxGui/Messages.py:301
+#: ../filerockclient/ui/wxGui/Messages.py:315
 msgid "Cloud storage provider"
 msgstr ""
 
-#: ../filerockclient/ui/wxGui/Messages.py:302
+#: ../filerockclient/ui/wxGui/Messages.py:316
 msgid "Keep data replica on"
 msgstr ""
 
+#: ../filerockclient/ui/wxGui/Messages.py:317
+msgid "Show presentation"
+msgstr ""
+
+#: ../filerockclient/ui/wxGui/Messages.py:318
+msgid "Updates"
+msgstr ""
+
+#: ../filerockclient/ui/wxGui/Messages.py:319
+msgid "Launch on startup"
+msgstr ""
+
+#: ../filerockclient/ui/wxGui/Messages.py:320
+msgid "Bandwidth limit (KiB/s)"
+msgstr ""
+
+#: ../filerockclient/ui/wxGui/Messages.py:321
+msgid "Upload:"
+msgstr ""
+
+#: ../filerockclient/ui/wxGui/Messages.py:322
+msgid "Download:"
+msgstr ""
+
 #. ##### CONFING TOOLTIP ######
-#: ../filerockclient/ui/wxGui/Messages.py:305
+#: ../filerockclient/ui/wxGui/Messages.py:325
 msgid "Configuration Dir ToolTip"
 msgstr ""
 
-#: ../filerockclient/ui/wxGui/Messages.py:306
+#: ../filerockclient/ui/wxGui/Messages.py:326
 msgid "Private key TootTip"
 msgstr ""
 
-#: ../filerockclient/ui/wxGui/Messages.py:307
+#: ../filerockclient/ui/wxGui/Messages.py:327
 msgid "Username ToolTip"
 msgstr ""
 
-#: ../filerockclient/ui/wxGui/Messages.py:308
+#: ../filerockclient/ui/wxGui/Messages.py:328
 msgid "Temporary Dir ToolTip"
 msgstr ""
 
-#: ../filerockclient/ui/wxGui/Messages.py:309
+#: ../filerockclient/ui/wxGui/Messages.py:329
 msgid "Change the location of your FileRock Folder"
 msgstr ""
 
-#: ../filerockclient/ui/wxGui/Messages.py:310
+#: ../filerockclient/ui/wxGui/Messages.py:330
 msgid "Client ID ToolTip"
 msgstr ""
 
-#: ../filerockclient/ui/wxGui/Messages.py:311
+#: ../filerockclient/ui/wxGui/Messages.py:331
 msgid "Defines the action to perform on tray icon left click"
 msgstr ""
 
-#: ../filerockclient/ui/wxGui/Messages.py:312
+#: ../filerockclient/ui/wxGui/Messages.py:332
 msgid ""
 "Enabling this feature will allow FileRock to use Finder colored labels to "
 "show you the synchronization status of your files. This will overwrite any "
@@ -670,52 +723,84 @@ msgid ""
 "disable this feature, all the colored labels will be removed."
 msgstr ""
 
-#: ../filerockclient/ui/wxGui/Messages.py:319
+#: ../filerockclient/ui/wxGui/Messages.py:339
 msgid ""
 "Select the Cloud Storage Provider where your data is kept. This feature will "
 "be available soon."
 msgstr ""
 
-#: ../filerockclient/ui/wxGui/Messages.py:322
+#: ../filerockclient/ui/wxGui/Messages.py:342
 msgid ""
 "For increased protection: select a Cloud Storage Provider where you want to "
 "keep a replica of all your data. This feature will be available soon."
 msgstr ""
 
-#: ../filerockclient/ui/wxGui/Messages.py:326
+#: ../filerockclient/ui/wxGui/Messages.py:346
+msgid "Show presentation when FileRock starts"
+msgstr ""
+
+#: ../filerockclient/ui/wxGui/Messages.py:347
+msgid "Automatically apply updates"
+msgstr ""
+
+#: ../filerockclient/ui/wxGui/Messages.py:348
+msgid "Launch FileRock at login"
+msgstr ""
+
+#: ../filerockclient/ui/wxGui/Messages.py:353
+msgid "Apply updated automatically"
+msgstr ""
+
+#: ../filerockclient/ui/wxGui/Messages.py:354
+msgid "Ask me before applying updates"
+msgstr ""
+
+#: ../filerockclient/ui/wxGui/Messages.py:356
+msgid ""
+"Limit upload bandwidth (KiB/s). When set to 0, all the available bandwidth "
+"can be used."
+msgstr ""
+
+#: ../filerockclient/ui/wxGui/Messages.py:357
+msgid ""
+"Limit download bandwidth (KiB/s). When set to 0, all the available bandwidth "
+"can be used."
+msgstr ""
+
+#: ../filerockclient/ui/wxGui/Messages.py:360
 msgid "Seeweb"
 msgstr ""
 
-#: ../filerockclient/ui/wxGui/Messages.py:327
+#: ../filerockclient/ui/wxGui/Messages.py:361
 msgid "Amazon S3"
 msgstr ""
 
-#: ../filerockclient/ui/wxGui/Messages.py:328
+#: ../filerockclient/ui/wxGui/Messages.py:362
 msgid "Azure Cloud Storage"
 msgstr ""
 
-#: ../filerockclient/ui/wxGui/Messages.py:330
+#: ../filerockclient/ui/wxGui/Messages.py:364
 #, python-format
 msgid "%(status)s %(cloud)s"
 msgstr ""
 
-#: ../filerockclient/ui/wxGui/Messages.py:331
+#: ../filerockclient/ui/wxGui/Messages.py:365
 msgid "(Coming Soon)"
 msgstr ""
 
-#: ../filerockclient/ui/wxGui/Messages.py:332
+#: ../filerockclient/ui/wxGui/Messages.py:366
 msgid "Coming Soon"
 msgstr ""
 
-#: ../filerockclient/ui/wxGui/Messages.py:334
+#: ../filerockclient/ui/wxGui/Messages.py:368
 msgid "Do not replicate my data"
 msgstr ""
 
-#: ../filerockclient/ui/wxGui/Messages.py:337
+#: ../filerockclient/ui/wxGui/Messages.py:371
 msgid "Critical Error"
 msgstr ""
 
-#: ../filerockclient/ui/wxGui/Messages.py:338
+#: ../filerockclient/ui/wxGui/Messages.py:372
 msgid ""
 "FileRock has detected an unexpected behavior, and cannot proceed.\n"
 "This might usually be due to temporary infrastructure maintenance.\n"
@@ -727,11 +812,11 @@ msgid ""
 "If it does, please contact support@filerock.com."
 msgstr ""
 
-#: ../filerockclient/ui/wxGui/Messages.py:347
+#: ../filerockclient/ui/wxGui/Messages.py:381
 msgid "WARNING"
 msgstr ""
 
-#: ../filerockclient/ui/wxGui/Messages.py:348
+#: ../filerockclient/ui/wxGui/Messages.py:382
 msgid ""
 "Attention!\n"
 "You are selecting as FileRock folder a directory\n"
@@ -741,7 +826,7 @@ msgid ""
 "Do you want to proceed?"
 msgstr ""
 
-#: ../filerockclient/ui/wxGui/Messages.py:355
+#: ../filerockclient/ui/wxGui/Messages.py:389
 #, python-format
 msgid ""
 "Attention!\n"
@@ -755,7 +840,7 @@ msgid ""
 "Do you want to proceed?"
 msgstr ""
 
-#: ../filerockclient/ui/wxGui/Messages.py:367
-#: ../filerockclient/ui/wxGui/Messages.py:368
+#: ../filerockclient/ui/wxGui/Messages.py:401
+#: ../filerockclient/ui/wxGui/Messages.py:402
 msgid "Choose your FileRock folder"
 msgstr ""

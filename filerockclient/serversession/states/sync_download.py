@@ -74,6 +74,10 @@ class ResolveDeletionConflictsTask(object):
         self._on_abort = on_abort
         self._on_reject = on_reject
 
+        # this is needed for task tracking facility
+        if __debug__:
+            self.pathname = "RESOLVE_DELETION_CONFLICTS"
+
     def complete(self):
         self.state = 'completed'
         self._on_complete(self)
@@ -183,6 +187,10 @@ class ResolvingDeletionConflictsState(ServerSessionState):
             self._on_task_abort,
             self._on_task_reject)
 
+        got_it = self._context.worker_pool.acquire_worker()
+        assert got_it
+        if __debug__:
+            self._context.worker_pool.track_acquire_anonymous_worker(task.pathname)
         self._context.worker_pool.send_operation(task)
 
     def _on_task_complete(self, task):
@@ -220,6 +228,10 @@ class DeleteLocalTask(object):
         self._on_complete = on_complete
         self._on_abort = on_abort
         self._on_reject = on_reject
+
+        # this is needed for task tracking facility
+        if __debug__:
+            self.pathname = "DELETE_LOCAL"
 
     def complete(self):
         self.state = 'completed'
@@ -312,7 +324,7 @@ class LocalDeletionState(ServerSessionState):
         self.logger.info(u'Received info on deletion of pathname "%s" '
                          '(still %s to do)' %
                          (pathname, len(self._pathname_to_do)))
-        if len(self._pathname_to_do) == 0:
+        if len(self._pathname_to_do) == 0:                                            
             self._send_task()
 
     def _send_task(self):
@@ -325,6 +337,10 @@ class LocalDeletionState(ServerSessionState):
                                self._on_task_complete,
                                self._on_task_abort,
                                self._on_task_reject)
+
+        self._context.worker_pool.acquire_worker()
+        if __debug__:
+            self._context.worker_pool.track_acquire_anonymous_worker("DELETE_LOCAL")
         self._context.worker_pool.send_operation(task)
 
     def _on_task_complete(self, task):
@@ -388,6 +404,10 @@ class CreateDirectoriesTask(object):
         self._on_complete = on_complete
         self._on_abort = on_abort
         self._on_reject = on_reject
+
+        # this is needed for task tracking facility
+        if __debug__:
+            self.pathname = "CREATE_DIRECTORIES"
 
     def complete(self):
         self.state = 'completed'
@@ -457,7 +477,7 @@ class DownloadingDirectoriesState(ServerSessionState):
                                                        blocking=False)
             except multi_queue.Empty:
                 break
-            self.logger.debug(u"Received file operation: %s", op)
+            #self.logger.debug(u"Received file operation: %s", op)
             self._context._sync_operations.append(op)
 
         # Stop listening operations
@@ -517,6 +537,10 @@ class DownloadingDirectoriesState(ServerSessionState):
                                      self._on_task_complete,
                                      self._on_task_abort,
                                      self._on_task_reject)
+        got_it = self._context.worker_pool.acquire_worker()
+        assert got_it
+        if __debug__:
+            self._context.worker_pool.track_acquire_anonymous_worker(task.pathname)
         self._context.worker_pool.send_operation(task)
 
     def _on_task_complete(self, task):
@@ -580,6 +604,11 @@ class DownloadingFilesState(ServerSessionState):
                 u"Concurrency trouble in %s: could not acquire a worker"
                 " although some should have been available"
                 % (self.__class__.__name__ + "._handle_file_operation"))
+
+        if __debug__:
+            self._context.worker_pool.track_acquire_anonymous_worker(
+                operation.pathname)
+
         if not self._context.worker_pool.exist_free_workers():
             self._listening_operations = False
 
@@ -615,7 +644,8 @@ class DownloadingFilesState(ServerSessionState):
     def _handle_command_WORKERFREE(self, command):
         """A worker is available to serve more operations.
         """
-        self._listening_operations = True
+        if self._context.worker_pool.exist_free_workers():
+            self._listening_operations = True
 
     def _handle_message_SYNC_GET_RESPONSE(self, message):
         """An operation has been authorized by the server, let's send it

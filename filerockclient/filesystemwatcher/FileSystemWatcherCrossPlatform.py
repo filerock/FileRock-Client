@@ -404,9 +404,9 @@ class FileSystemWatcherCrossPlatform(SuspendableThread):
 
     def learn_pathname(self, pathname, size, lmtime, etag):
         record = (pathname, size, lmtime, etag)
-        self._logger.debug(
-            u'Learning pathname %r (size: %s, lmtime: %s, etag: %s)'
-            % record)
+        #self._logger.debug(
+        #    u'Learning pathname %r (size: %s, lmtime: %s, etag: %s)'
+        #    % record)
         self._pathnames_to_learn.put(record)
 
     def forget_pathname(self, pathname):
@@ -505,6 +505,12 @@ class FileSystemWatcherCrossPlatform(SuspendableThread):
         Part of the SuspendableThread protocol.
         Main logic of the FileSystemWatcher.
         '''
+
+        # --- uncomment the following to enable profiling ---
+        #import cProfile
+        #self.prof=cProfile.Profile()
+        #self.prof.enable()
+
         while not self._must_die.is_set():
             #self._logger.debug(u'Starting a scan')
             # Suspend execution if so requested, until explicitly resumed
@@ -516,10 +522,22 @@ class FileSystemWatcherCrossPlatform(SuspendableThread):
             #self._logger.debug(u'Scan ended')
             self._wait_for_next_scan()
 
+        # --- uncomment the following to enable profiling ---
+        #self.prof.disable()
+        #self.prof.dump_stats('fswatcher.profile')
+
     def terminate(self):
         '''
         Shut down the FileSystemWatcher.
         '''
+
+        # --- uncomment the following to enable profiling ---
+        #try:
+            #self.prof.disable()
+            #self.prof.dump_stats('fswatcher.profile')
+        #except:
+            #pass
+
         self._must_die.set()
         # Part of the SuspendableThread protocol
         self._terminate_suspension_handling()

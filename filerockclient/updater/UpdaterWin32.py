@@ -104,8 +104,8 @@ class Updater_win32(UpdaterBase):
         updater_src_path = os.path.abspath(os.path.join(filerock_install_dir, self.UPDATER_PATH))
         updater_dst_path = os.path.abspath(os.path.join(self.temp_dir, 'updater.exe'))
 
-        try: assert not os.path.exists(updater_dst_path)
-        except AssertionError: os.unlink(updater_dst_path)
+        if os.path.exists(updater_dst_path):
+            os.unlink(updater_dst_path)
 
         shutil.copy2(updater_src_path, updater_dst_path)
 

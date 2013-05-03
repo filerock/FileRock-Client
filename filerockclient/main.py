@@ -38,8 +38,8 @@ FileRock Client is licensed under GPLv3 License.
 
 """
 
-from filerockclient.constants import get_command_line, \
-                                     IS_DARWIN, IS_PYTHON_27, IS_64BITS
+from filerockclient.constants import \
+    get_command_line, IS_DARWIN, IS_PYTHON_27, IS_64BITS
 
 assert IS_PYTHON_27, "Python 2.7 required"
 assert not (IS_DARWIN and IS_64BITS), "Python 2.7 32bit required on OSX"
@@ -73,14 +73,14 @@ def main():
     parser.add_argument(
         '--no-bug-report',
         dest='bugreport', action='store_false',
-        help="In case of unhandled exceptions do not trigger the bug-report \
-        subsystem but shows exceptions on terminal. This options is intended \
-        to be used by developers.")
+        help="In case of unhandled exceptions do not trigger the bug-report "
+        "subsystem but shows exceptions on terminal. This options is intended "
+        "to be used by developers.")
 
     parser.add_argument(
         '--show-panel',
         dest='showpanel', action='store_true',
-        help="If this param is specified the software will open the Gui " \
+        help="If this param is specified the software will open the Gui "
              "panel on startup")
 
     parser.add_argument(
@@ -97,13 +97,19 @@ def main():
         dest='restartcount', help='Internal use', type=int, default=0,
         metavar="<restart count>")
 
+    parser.add_argument(
+        '--no-hard-reset',
+        dest='hardreset_allowed', help='disable automatic restart of the '
+                                       'application upon internal faults',
+        action='store_false', default=True)
+
     # Just parse known options
     args, _ = parser.parse_known_args()
 
     application = Application(
         args.develop, args.bugreport, args.configdir, args.startupslides,
-        args.restartcount, args.showpanel, args.interface, get_command_line(),
-        'filerock.py')
+        args.restartcount, args.hardreset_allowed, args.showpanel,
+        args.interface, get_command_line(), 'filerock.py')
 
     application.main_loop()
 

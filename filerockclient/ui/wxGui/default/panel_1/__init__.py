@@ -103,6 +103,13 @@ class Panel1(wx.Panel):
                                         Messages.PANEL1_USER_LABEL,
                                         style=wx.ALIGN_RIGHT)
 
+        self.plan_label = wx.StaticText(self.panel_1,
+                                        -1,
+                                        Messages.PANEL1_PLAN_LABEL)
+
+        self.expirdate_label = wx.StaticText(self.panel_1,
+                                             -1,
+                                             Messages.PANEL1_EXPIRDATE_LABEL)
 
         self.client_label = wx.StaticText(self.panel_1,
                                           -1,
@@ -146,6 +153,10 @@ class Panel1(wx.Panel):
 
         self.user_ctrl = MywxStaticText(self.panel_1, -1, Messages.UNKNOWN)
 
+        self.plan_ctrl = MywxStaticText(self.panel_1, -1, Messages.UNKNOWN)
+
+        self.expirdate_ctrl = MywxStaticText(self.panel_1, -1, Messages.UNKNOWN)
+
         self.client_ctrl = MywxStaticText(self.panel_1, -1, Messages.UNKNOWN)
 
         self.host_ctrl = MywxStaticText(self.panel_1, -1, Messages.UNKNOWN)
@@ -155,6 +166,8 @@ class Panel1(wx.Panel):
 
         map(self.__strong_text, [self.user_label,
                                  self.version_label,
+                                 self.plan_label,
+                                 self.expirdate_label,
                                  self.host_label,
                                  self.client_label,
                                  self.status_label])
@@ -208,7 +221,7 @@ class Panel1(wx.Panel):
         sizer_21 = wx.BoxSizer(wx.HORIZONTAL)
         sizer_2 = wx.BoxSizer(wx.VERTICAL)
         sizer_7 = wx.BoxSizer(wx.HORIZONTAL)
-        grid_sizer_1 = wx.FlexGridSizer(4, 2, 5, 5)
+        grid_sizer_1 = wx.FlexGridSizer(0, 2, 5, 5)
         sizer_5 = wx.BoxSizer(wx.VERTICAL)
         grid_sizer_2 = wx.FlexGridSizer(1, 3, 0, 0)
         grid_sizer_2.Add((20, 20), 0, wx.EXPAND, 0)
@@ -219,15 +232,21 @@ class Panel1(wx.Panel):
         sizer_5.Add(self.value2_ctrl, 0, wx.TOP|wx.BOTTOM|wx.ALIGN_CENTER_HORIZONTAL|wx.ALIGN_CENTER_VERTICAL, 1)
         sizer_3.Add(sizer_5, 1, wx.ALL, 5)
         sizer_3.Add(self.static_line_1, 0, wx.ALL|wx.EXPAND, 5)
+
         grid_sizer_1.Add(self.user_label, 0, wx.LEFT, 10)
         grid_sizer_1.Add(self.user_ctrl, 0, 0, 0)
-        grid_sizer_1.Add(self.client_label, 0, wx.LEFT, 10)
-        grid_sizer_1.Add(self.client_ctrl, 0, 0, 0)
+        grid_sizer_1.Add(self.plan_label, 0, wx.LEFT, 10)
+        grid_sizer_1.Add(self.plan_ctrl, 0, 0, 0)
+        grid_sizer_1.Add(self.expirdate_label, 0, wx.LEFT, 10)
+        grid_sizer_1.Add(self.expirdate_ctrl, 0, 0, 0)
         grid_sizer_1.Add(self.host_label, 0, wx.LEFT, 10)
         grid_sizer_1.Add(self.host_ctrl, 0, 0, 0)
+        grid_sizer_1.Add(self.client_label, 0, wx.LEFT, 10)
+        grid_sizer_1.Add(self.client_ctrl, 0, 0, 0)
         grid_sizer_1.Add(self.version_label, 0, wx.LEFT, 10)
         grid_sizer_1.Add(self.version_ctrl, 0, 0, 0)
         grid_sizer_1.AddGrowableCol(1)
+
         sizer_7.Add(grid_sizer_1, 1, wx.EXPAND, 0)
         sizer_6.Add(sizer_7, 0, wx.TOP|wx.BOTTOM|wx.EXPAND|wx.ALIGN_CENTER_HORIZONTAL|wx.ALIGN_CENTER_VERTICAL, 15)
         sizer_6.Add(self.static_line_2, 0, wx.EXPAND, 0)

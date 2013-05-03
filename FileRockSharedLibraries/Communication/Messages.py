@@ -358,8 +358,41 @@ class SyncFilesListMessage(Message):
     # @param dataset: a list of dictionaries containing objects' attributes like:
     #                 {'key': key, 'etag': etag, 'lmtime': lmtime, 'size': size}
     
-    required_parameters = ['basis', 'dataset', 'last_commit_client_id', 'last_commit_client_hostname', 'last_commit_client_platform', 'last_commit_timestamp', 'user_quota', 'used_space']
+    required_parameters = ['basis', 
+                           'dataset', 
+                           'last_commit_client_id', 
+                           'last_commit_client_hostname', 
+                           'last_commit_client_platform', 
+                           'last_commit_timestamp', 
+                           'user_quota', 
+                           'used_space',
+                           'status',
+                           'expires_on',
+                           'plan']
+    # new parameters that Client expects about plan and expiration date, and might be put as "required"
+    # in the near future
+    #
+    # plan: a dictionary as follows (mandatory)
+    #          { id: <plan_id>,    # a number
+    #             space: <plan_space_in_GB>,   # a number (within a plan this is mandatory and 'not None')
+    #             price: <price_in_$>,      # a number    (if absent or ==None it means "free")
+    #             payment_type: <(SINGLE|SUBSCRIPTION)>,   # unicode  (present if price is not None)
+    #             payment_recurrence: <(MONTHLY|YEARLY)>   # unicode  (present if price is not None)
+    #            }
+    # expires_on: <GMT-Date-or-None>    # a number representing a unix timestamp UTC (mandatory)
+    #             (it might be None if plan is "forever", this is the expiration date of the subscription,
+    #              it does not change when in grace time).
+    # status: unicode (mandatory), one in 
+            #ACTIVE_BETA
+            #ACTIVE_TRIAL
+            #ACTIVE_PAID
+            #ACTIVE_SUBSCRIBED
+            #ACTIVE_GRACE
+            #SUSPENDED
+            #MAINTAINANCE     
+
     
+
     def __repr__(self):
         message_repr = 'Message: %s \n' % self.name
         message_repr += 'Parameters: \n'

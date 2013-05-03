@@ -60,7 +60,7 @@ from filerockclient.blacklist.blacklist import Blacklist
 from filerockclient.blacklist.blacklisted_expressions import \
     BLACKLISTED_DIRS, BLACKLISTED_FILES, CONTAINS_PATTERN, EXTENTIONS
 from filerockclient import config
-from filerockclient.config import CLIENT_SECTION, USER_SECTION
+from filerockclient.util.utilities import fastnormpath, fastrelpath, fastjoin
 
 MAX_ATTEMPTS_ON_MOVE = 3
 
@@ -132,7 +132,8 @@ class Warebox(object):
                                    BLACKLISTED_FILES,
                                    CONTAINS_PATTERN,
                                    EXTENTIONS)
-        self.cache = WareboxCache(cfg.get('Application Paths', 'warebox_cache_db'))
+        self.cache = WareboxCache(cfg.get('Application Paths',
+                                          'warebox_cache_db'))
 
     def get_warebox_path(self):
         """
@@ -150,8 +151,9 @@ class Warebox(object):
                     The filesystem absolute version of internal_pathname.
         """
 
-        absolute_name = os.path.join(self._warebox_path, internal_pathname)
-        return os.path.normpath(absolute_name)
+        absolute_name = fastjoin(self._warebox_path, internal_pathname)
+        n = fastnormpath(absolute_name)
+        return n
 
     def internal_pathname(self, absolute_pathname):
         """Convert a filesystem absolute pathname into a warebox
@@ -171,13 +173,16 @@ class Warebox(object):
 
         relative_name = os.path.relpath(absolute_pathname, self._warebox_path)
 
-        if relative_name.startswith('.'):
+        if relative_name.startswith('..'+os.sep):
             raise ValueError('"%r" is not contained in the warebox'
-                % (absolute_pathname))
+                             % absolute_pathname)
 
         if os.path.isdir(absolute_pathname):
             relative_name += '/'
-        return relative_name.replace('\\', '/')
+
+        if sys.platform.startswith('win'):
+            relative_name = relative_name.replace('\\', '/')
+        return relative_name
 
     def _clean_temp_dir(self):
         """Delete everything from the temporary directory.
@@ -355,30 +360,18 @@ class Warebox(object):
             exc.errno = e.errno if hasattr(e, 'errno') else None
             raise exc
 
-    def _assert_unicode(self,
-                pathname, warebox_path, folder,
-                abs_folder, prefix, filename):
+    def _assert_unicode(self, pathname, warebox_path, folder,
+                        abs_folder, prefix, filename):
         """Test if any of the arguments is not an unicode object.
 
         Geez, unicode errors are very irritating.
         """
-        data =  'pathname = %r\n' % pathname
-        data += 'warebox_path = %r\n' % warebox_path
-        data += 'folder = %r\n' % folder
-        data += 'abs_folder = %r\n' % abs_folder
-        data += 'prefix = %r\n' % prefix
-        data += 'filename = %r\n' % filename
-
-        try:
-            assert pathname.__class__.__name__ == "unicode"
-            assert warebox_path.__class__.__name__ == "unicode"
-            assert folder.__class__.__name__ == "unicode"
-            assert abs_folder.__class__.__name__ == "unicode"
-            assert prefix.__class__.__name__ == "unicode"
-            assert filename.__class__.__name__ == "unicode"
-        except AssertionError:
-            raise FileRockException(
-                "Non unicode-ness detected in Warebox.get_content():\n" + data)
+        assert type(pathname) == unicode
+        assert type(warebox_path) == unicode
+        assert type(folder) == unicode
+        assert type(abs_folder) == unicode
+        assert type(prefix) == unicode
+        assert type(filename) == unicode
 
     def is_blacklisted(self, pathname):
         """Tell whether the given pathname is blacklisted.
@@ -408,10 +401,16 @@ class Warebox(object):
         @return
                     Boolean.
         """
+        abspath = self.absolute_pathname(rel_pathname)
         blacklisted = active_blacklist and self.is_blacklisted(rel_pathname)
-        return not blacklisted and \
-            os.path.exists(self.absolute_pathname(rel_pathname)) and \
-            stat.S_ISREG(os.stat(self.absolute_pathname(rel_pathname)).st_mode)
+        if blacklisted:
+            return False
+        try:
+            statresult = os.stat(abspath)
+        except os.error:
+            return False
+
+        return stat.S_ISREG(statresult.st_mode)
 
     def _check_interruption(self, interruption):
         if interruption is not None and interruption.is_set():
@@ -444,12 +443,14 @@ class Warebox(object):
         for curr_folder, contained_folders, contained_files in os.walk(abs_folder):
             self._check_interruption(interruption)
             folders_to_not_walk_into = []
-            prefix = os.path.relpath(curr_folder, self._warebox_path)
-            if prefix == u'.':
-                prefix = u''
+            #prefix = os.path.relpath(curr_folder, self._warebox_path)
+            #if prefix == u'.':
+                #prefix = u''
+            prefix = fastrelpath(curr_folder, self._warebox_path)
+
             for a_folder in contained_folders:
                 self._check_interruption(interruption)
-                _a_folder = os.path.join(prefix, a_folder)
+                _a_folder = fastjoin(prefix, a_folder)
                 _a_folder = _a_folder.replace('\\', '/')  # Damn Windows
                 _a_folder += '/' if not _a_folder.endswith('/') else ''
                 if not blacklisted or not self.is_blacklisted(_a_folder):
@@ -468,13 +469,13 @@ class Warebox(object):
 
             for a_file in contained_files:
                 self._check_interruption(interruption)
-                _a_file = os.path.join(prefix, a_file)
+                _a_file = fastjoin(prefix, a_file)
                 _a_file = _a_file.replace('\\', '/')  # Damn Windows
                 if self._can_i_add_this_file(blacklisted, _a_file):
                     pathnames.append(_a_file)
 
                 # It seems that get_content() can return non-unicode pathnames.
-                # This guard checks it.
+                # This guard checks against it.
                 self._assert_unicode(
                     _a_file, self._warebox_path, folder,
                     abs_folder, prefix, a_file)
@@ -591,16 +592,16 @@ class Warebox(object):
         """
         if self.cache.exist_record(pathname):
             self.cache.update_record_fields(
-                              pathname,
-                              size=self.get_size(pathname),
-                              lmtime=self.get_last_modification_time(pathname),
-                              etag=md5_hex)
+                pathname,
+                size=self.get_size(pathname),
+                lmtime=self.get_last_modification_time(pathname),
+                etag=md5_hex)
         else:
             self.cache.update_record(
-                               unicode(pathname),
-                               self.get_size(pathname),
-                               self.get_last_modification_time(pathname),
-                               md5_hex)
+                unicode(pathname),
+                self.get_size(pathname),
+                self.get_last_modification_time(pathname),
+                md5_hex)
 
     def compute_md5_hex(self, pathname):
         """Compute the hexadecimal text representation of the MD5 hash
@@ -612,7 +613,7 @@ class Warebox(object):
                     The hexadecimal MD5 hash of the pathname content.
         """
         if not self._is_new(pathname):
-            _ , _, _, etag = self.cache.get_record(pathname)
+            _, _, _, etag = self.cache.get_record(pathname)
             return etag
 
         md5_hex = binascii.hexlify(self.compute_md5(pathname))

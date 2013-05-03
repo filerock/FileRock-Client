@@ -151,7 +151,8 @@ class ReplicationAndTransferState(ServerSessionState):
     def _handle_command_WORKERFREE(self, command):
         """A worker is available, start to serve operations again.
         """
-        self._context.listening_operations = True
+        if self._context.worker_pool.exist_free_workers():
+            self._context.listening_operations = True
 
     def _handle_operation(self, file_operation):
         """Here is an operation to do for replicating a local pathname.
@@ -201,8 +202,14 @@ class ReplicationAndTransferState(ServerSessionState):
                     u"Concurrency trouble in %s: could not acquire a worker"
                     " although some should have been available"
                     % (self.__class__.__name__ + "._handle_file_operation"))
+
+            if __debug__:
+                self._context.worker_pool.track_acquire_anonymous_worker(
+                    file_operation.pathname)
+
             if not self._context.worker_pool.exist_free_workers():
                 self._context.listening_operations = False
+
         self._declare_operation(file_operation, op_id)
         self._check_time_to_commit()
 
@@ -283,6 +290,8 @@ class ReplicationAndTransferState(ServerSessionState):
             self._context.transaction.remove_operation(op_id)
             if operation.verb == 'UPLOAD':
                 self._context.worker_pool.release_worker()
+                if __debug__:
+                    self._context.track_release_unassigned_worker(operation.pathname)
             self._context._input_queue.append(operation, 'operation')
             self._set_next_state(StateRegister.get('WaitingOnDeclarationFailure'))
             return
@@ -337,7 +346,6 @@ class ReplicationAndTransferState(ServerSessionState):
         """
         self.logger.debug(u"Postponing file operation: %s" % (operation))
         self._context._input_queue.append(operation, 'operation')
-        self._context.worker_pool.release_worker()
 
     def on_commit_necessary_to_proceed(self):
         """Session can decide to commit the current transaction. It
@@ -403,7 +411,11 @@ class ReplicationAndTransferState(ServerSessionState):
         contradict the boss.
         """
         unauthorized = self._context.transaction_manager.flush_unauthorized_operations()
-        map(lambda x: self.postpone_operation(x), unauthorized)
+        for operation in unauthorized:
+            self.postpone_operation(operation)
+            self._context.worker_pool.release_worker()
+            if __debug__: 
+                self._context.worker_pool.track_release_unassigned_worker(operation)
         self._set_next_state(StateRegister.get('CommitState'))
 
     def _handle_command_USERCOMMIT(self, message):

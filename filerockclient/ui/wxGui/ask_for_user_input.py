@@ -98,7 +98,10 @@ class Ask_for_user_input(object):
         @param client_id: the client id number
         @param client_hostname: the hostname of the machine
         '''
-        message = Messages.OTHER_CLIENT_CONNECTED_DIALOG_BODY % {
+        if client_id==0:
+            message = Messages.WEBCLIENT_CONNECTED_DIALOG_BODY
+        else:
+            message = Messages.OTHER_CLIENT_CONNECTED_DIALOG_BODY % {
                                 'client_id': client_id,
                                 'client_hostname': client_hostname
                             }

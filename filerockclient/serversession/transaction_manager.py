@@ -116,7 +116,7 @@ class TransactionManager(object):
             if operation.is_directory():
                 if self.storage_cache.exist_record_proper_prefix(operation.pathname):
                     #we know that directory is not empty
-                    session_state.postpone_operation(operation)
+                    session_state.postpone_operation(operation)  #no worker has been acquired yet -> no release
                     session_state.on_commit_necessary_to_proceed()
                     raise ForceStateChange()
 

@@ -169,7 +169,7 @@ class MainWindow(TMainWindow.MainWindow):
         self.status_bitmap_button.SetToolTipString(Messages.MAINWINDOW_STATUS_BUTTON_TOOLTIP)
         self.activity_bitmap_button.SetToolTipString(Messages.MAINWINDOW_ACTIVITY_BUTTON_TOOLTIP)
         self.preferences_bitmap_button.SetToolTipString(Messages.MAINWINDOW_PREFERENCES_BUTTON_TOOLTIP)
-        self.logs_bitmap_button.SetToolTipString(Messages.MAINWINDOW_LOGS_BUTTON_TOOTIP)
+        #self.logs_bitmap_button.SetToolTipString(Messages.MAINWINDOW_LOGS_BUTTON_TOOTIP)
 
         #LABELS
 #        self.user_label.SetLabel(Messages.MAINWINDOW_USER_LABEL)
@@ -178,14 +178,15 @@ class MainWindow(TMainWindow.MainWindow):
         self.status_label.SetLabel(Messages.MAINWINDOW_STATUS_BUTTON_LABEL)
         self.activity_label.SetLabel(Messages.MAINWINDOW_ACTIVITY_BUTTON_LABEL)
         self.preferences_label.SetLabel(Messages.MAINWINDOW_PREFERENCES_BUTTON_LABEL)
-        self.logs_label.SetLabel(Messages.MAINWINDOW_LOGS_BUTTON_LABEL)
+        #self.logs_label.SetLabel(Messages.MAINWINDOW_LOGS_BUTTON_LABEL)
 
         map(self.change_font_size, [self.folder_label,
                                     self.start_stop_label,
                                     self.activity_label,
                                     self.status_label,
-                                    self.preferences_label,
-                                    self.logs_label])
+                                    self.preferences_label#,
+                                    #self.logs_label
+                                    ])
 
 
 
@@ -285,16 +286,28 @@ class MainWindow(TMainWindow.MainWindow):
             user_quota: number (space in bytes) or None
             used_space: number (space in bytes) or None
             basis
+            plan
+            status
+            expires_on
+
         '''
-        if event.infos['user_quota'] is not None\
+        if event.infos['user_quota'] is not None \
         and event.infos['used_space'] is not None:
             self.setSpaceInfo(int(event.infos['user_quota']),
-                              int(event.infos['used_space'])
-                             )
+                              int(event.infos['used_space']))
         if 'basis' in event.infos:
             self.panel_1.updateHash(event.infos['basis'])
         if event.infos['last_commit_timestamp'] is not None:
             self.panel_1.updateTimestamp(event.infos['last_commit_timestamp'])
+
+        if ('plan' in event.infos and
+                'status' in event.infos and
+                'expires_on' in event.infos and 
+                'user_quota' in event.infos):
+            self.setContractualInfo(event.infos['plan'],
+                                    event.infos['status'],
+                                    event.infos['expires_on'],
+                                    event.infos['user_quota'])
 
     def OnUpdatePathnameStatus(self, event):
         """
@@ -334,8 +347,7 @@ class MainWindow(TMainWindow.MainWindow):
         """
         self.start_stop_label.SetLabel(self.start_stop_text[self.started])
         self.start_stop_bitmap_button.SetBitmapLabel(
-            self.start_stop_image[self.started]
-            )
+            self.start_stop_image[self.started])
         self.Layout()
         self.start_stop_bitmap_button.Enable()
 
@@ -361,6 +373,83 @@ class MainWindow(TMainWindow.MainWindow):
         Updates the pathname status on panel2
         """
         self.panel_2.updatePathnameStatus(pathname, status, extras)
+
+    def setContractualInfo(self, plan, status, expires_on, current_quota):
+        """
+        @param plan: the plan described by a dictionary as the following
+                  { id: <plan_id>,    # a number
+                  space: <plan_space_in_GB>,   # a number (within a plan this is mandatory and 'not None')
+                  price: <price_in_$>,      # a number    (if absent or ==None it means "free")
+                  payment_type: <(SINGLE|SUBSCRIPTION)>,   # unicode  (present if price is not None)
+                  payment_recurrence: <(MONTHLY|YEARLY)>   # unicode  (present if price is not None)
+                  }
+        @param status:  unicode (mandatory), one of
+            ACTIVE_BETA
+            ACTIVE_TRIAL
+            ACTIVE_PAID
+            ACTIVE_SUBSCRIBED
+            ACTIVE_GRACE
+            SUSPENDED
+            MAINTAINANCE
+
+        @param expires_on: <GMT-Date-or-None>    # a number representing a unix timestamp UTC (mandatory)
+                 (it might be None if plan is "forever", this is the expiration date of the subscription,
+                  it does not change when in grace time).
+        """
+        try:
+            try:
+                planspace = str(plan['space'])
+            except Exception:
+                giga = (1024 * 1024 * 1024)
+                planspace = str(current_quota / giga)
+                
+            if expires_on is not None:
+                import time
+                expstring = time.strftime("%d %B %Y",
+                                          time.localtime(expires_on))
+
+            if status == 'ACTIVE_TRIAL':
+                self.panel_1.plan_ctrl.SetValue("Free Trial")
+                self.panel_1.expirdate_ctrl.SetValue(expstring)
+                self.panel_1.expirdate_ctrl.SetForegroundColour('black')
+            elif status == 'ACTIVE_BETA':
+                self.panel_1.plan_ctrl.SetValue("%s GB free" % planspace)
+                self.panel_1.expirdate_ctrl.SetValue('no expiration date')
+                self.panel_1.expirdate_ctrl.SetForegroundColour('black')
+            elif status in ['ACTIVE_PAID', 'ACTIVE_SUBSCRIBED', 'ACTIVE_GRACE']:
+
+                # # this was a more sophisticated message, not used at the moment
+                #
+                #rdesc=dict(MONTHLY='Monthly', YEARLY='Yearly')
+                #tdesc=dict(SINGLE='', SUBSCRIPTION='automatically renewed')
+                #recurrence_descr=rdesc[plan['payment_recurrence']]
+                #payment_type_descr=tdesc[plan['payment_type']]
+                #self.panel_1.plan_ctrl.SetValue("%s, %s paid" % (planspace,
+                                                             #recurrence_descr,
+                                                             #))
+
+                planname = 'PRO' + planspace
+
+                if planspace not in ['1', '4', '16']:
+                    planname += '?'
+
+                if status == 'ACTIVE_GRACE':
+                    self.panel_1.plan_ctrl.SetValue(planname)
+                    self.panel_1.expirdate_ctrl.SetValue(
+                        'expired, will be suspended on %s' % expstring)
+                    self.panel_1.expirdate_ctrl.SetForegroundColour('red')
+                else:
+                    self.panel_1.plan_ctrl.SetValue(planname)
+                    self.panel_1.expirdate_ctrl.SetValue(expstring)
+                    self.panel_1.expirdate_ctrl.SetForegroundColour('black')
+
+            self.Fit()
+
+        except Exception:
+            # this code suffer from coordination with server, be fault tolerant
+            import traceback
+            self.logger.debug("problem with showing contractual info: %r" %
+                              traceback.format_exc())
 
     def setSpaceInfo(self, user_quota, used_space):
         """

@@ -145,7 +145,8 @@ class Panel3(wx.Panel):
             'show_slideshow':       Messages.CONFIG_PRESENTATION_LABEL,
             'auto_update':          Messages.CONFIG_AUTOUPDATE_LABEL,
             'launch_on_startup':    Messages.CONFIG_LAUNCH_ON_STARTUP_LABEL,
-            'bandwidth_limit':      Messages.CONFIG_BANDWIDTH_LIMIT_LABEL
+            'bandwidth_limit':      Messages.CONFIG_BANDWIDTH_LIMIT_LABEL,
+            'show_logs_window':     ''  # no message for this, the button has its own label
         }
 
     def _get_keys_tooltip(self):
@@ -163,6 +164,7 @@ class Panel3(wx.Panel):
             'show_slideshow':       Messages.CONFIG_PRESENTATION_TOOLTIP,
             'auto_update':          Messages.CONFIG_AUTOUPDATE_TOOLTIP,
             'launch_on_startup':    Messages.CONFIG_LAUNCH_ON_STARTUP_TOOLTIP
+            # no tooltip for 'show_logs_window', butto has its own tooltip
         }
 
     def _shown_keys(self):
@@ -175,7 +177,8 @@ class Panel3(wx.Panel):
                                    'launch_on_startup'],
             NOCFG_SECTION:        ['cloud_storage',
                                    'replica_cloud',
-                                   'bandwidth_limit']
+                                   'bandwidth_limit',
+                                   'show_logs_window']
 
         }
         
@@ -205,7 +208,8 @@ class Panel3(wx.Panel):
                 (USER_DEFINED_OPTIONS, 'auto_update'        ),
                 (NOCFG_SECTION,        'bandwidth_limit'    ),
                 (USER_DEFINED_OPTIONS, 'launch_on_startup'  ),
-                (USER_DEFINED_OPTIONS, 'osx_label_shellext' )
+                (USER_DEFINED_OPTIONS, 'osx_label_shellext' ),
+                (NOCFG_SECTION,        'show_logs_window'   )
                 ]
     
     def _get_key_disposition(self):
@@ -220,7 +224,8 @@ class Panel3(wx.Panel):
                        "proxy_usage",
                        "auto_update",
                        "launch_on_startup",
-                       "osx_label_shellext"}
+                       "osx_label_shellext",
+                       'show_logs_window'}
         }
         
 

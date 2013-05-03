@@ -165,14 +165,13 @@ class UpdaterBase:
         self.logger.info(u"Fetching update file from %s" % self.download_url)
 
         # Check for temp dir existence (possibly creating it)
-        try: assert os.path.exists(self.temp_dir)
-        except AssertionError: os.makedirs(self.temp_dir)
-
+        if not os.path.exists(self.temp_dir):
+            os.makedirs(self.temp_dir)
 
         # Extract host & target from download URL
         matches = re.search("^https://([^/]+)(.*)$", self.download_url)
-        try: assert matches is not None
-        except AssertionError: raise UpdateFetchingException("Invalid download URL provided (%s)" % self.download_url)
+        if matches == None:
+            raise UpdateFetchingException("Invalid download URL provided (%s)" % self.download_url)
         update_server_host, update_server_target = matches.groups()
 
         # Download file from specified URL, validating SSL certificate
@@ -182,8 +181,8 @@ class UpdaterBase:
         self.logger.debug(u"Update file downloaded to %s " % self.get_update_file_path())
 
         # Verify checksum of downloaded file
-        try: assert self.verify_update_file_checksum()
-        except AssertionError: raise UpdateFetchingException(u"update file signature doesn't match!")
+        if not self.verify_update_file_checksum():
+            raise UpdateFetchingException(u"update file signature doesn't match!")
 
     def is_update_file_fetched(self):
         """
@@ -192,8 +191,8 @@ class UpdaterBase:
         b) Its checksum matches the one provided by server
         """
 
-        try: assert self._update_file_exists()
-        except AssertionError: return False
+        if not self._update_file_exists():
+            return False
 
         self.logger.debug(u"Update file found at %s" % self.get_update_file_path() )
 

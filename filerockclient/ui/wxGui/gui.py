@@ -93,7 +93,7 @@ LINKS = {
     'morespace': "https://www.filerock.com/morespace",
     'download': "https://www.filerock.com/download",
     'robohash': "https://www.filerock.com/visualhash",
-    'hashmismatch': 'https://www.filerock.com/beta/%s' % HASHMISHMATCH_ANCHOR
+    'hashmismatch': 'https://www.filerock.com/faq%s' % HASHMISHMATCH_ANCHOR
 }
 
 class GUI(wx.App, HeyDriveUserInterfaceNotification):
@@ -305,6 +305,9 @@ class GUI(wx.App, HeyDriveUserInterfaceNotification):
             user_quota: number (space in bytes)
             used_space: number (space in bytes)
             basis
+            plan
+            status 
+            expries_on
         '''
         evt = GuiUpdateSessionInfoWxEvent(infos=infos)
         wx.PostEvent(self, evt)

@@ -142,9 +142,12 @@ class DisconnectedState(ServerSessionState):
         """
         if message.is_other_client_connected():
             client = message.get_other_connected_client()
-            other_client_message = \
-                u"Client number %s from computer %s already connected" \
-                % (client["client_id"], client["hostname"])
+            if client["client_id"]==0:
+                other_client_message = u"Your web client is already connected"
+            else:
+                other_client_message = \
+                    u"Client number %s from computer %s already connected" \
+                    % (client["client_id"], client["hostname"])
             self.logger.warning(other_client_message)
             self._context.disconnect_other_client = True
             force_disconnection = self._context._ui_controller.ask_for_user_input(
@@ -340,9 +343,12 @@ class ChallengeResponseState(ServerSessionState):
             self._context._internal_facade.set_global_status(GStatuses.NC_NOTAUTHORIZED)
             if message.is_other_client_connected():
                 client = message.get_other_connected_client()
-                other_client_message = \
-                    u"Client number %s from computer %s already connected" \
-                    % (client["client_id"], client["hostname"])
+                if client["client_id"]==0:
+                    other_client_message = u"Your web client is already connected"
+                else:
+                    other_client_message = \
+                        u"Client number %s from computer %s already connected" \
+                        % (client["client_id"], client["hostname"])
                 self.logger.warning(other_client_message)
                 self._context.disconnect_other_client = True
                 force_disconnection = self._context._ui_controller.ask_for_user_input(

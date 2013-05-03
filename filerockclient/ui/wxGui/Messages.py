@@ -78,6 +78,10 @@ Client found an file named "encrypted" in the FileRock Folder.\n\
 Please, rename it and press OK.')
 
 OTHER_CLIENT_CONNECTED_DIALOG_TITLE = _(u"Another Client Connected")
+WEBCLIENT_CONNECTED_DIALOG_BODY = _(u"\
+Your web client is already connected.\n\
+Press OK to disconnect")
+
 OTHER_CLIENT_CONNECTED_DIALOG_BODY = _(u"\
 Client number %(client_id)s \
 from computer %(client_hostname)s already connected.\n\
@@ -152,7 +156,7 @@ MAINWINDOW_PREFERENCES_BUTTON_TOOLTIP = _(u"Edit your FileRock preferences")
 
 MAINWINDOW_LOGS_BUTTON_LABEL = _(u"Logs")
 MAINWINDOW_LOGS_BUTTON_TOOTIP = _(u"Open FileRock Log viewer")
-MAINWINDOW_MORE_SPACE_BUTTON_LABEL = _(u"Get More Space")
+MAINWINDOW_MORE_SPACE_BUTTON_LABEL = _(u"Upgrade")
 
 MAINWINDOW_TITLE = _(u"FileRock")
 MAINWINDOW_START_STOP_BUTTON_TOOLTIP = _(u'\
@@ -169,11 +173,13 @@ The hash and the robot change whenever\n\
 you upload, modify or delete files.\n\
 See our FAQs for a more detailed explanation.")
 
-PANEL1_USER_LABEL = _(u"Username:")
-PANEL1_CLIENT_LABEL = _(u"Client n°:")
-PANEL1_HOSTNAME_LABEL = _(u"Hostname:")
-PANEL1_VERSION_LABEL = _(u"Version:")
-PANEL1_STATUS_LABEL = _(u"Client Status:")
+PANEL1_USER_LABEL = _(u"Username")
+PANEL1_PLAN_LABEL = _(u"Plan")
+PANEL1_EXPIRDATE_LABEL = _(u"Expiration Date")
+PANEL1_HOSTNAME_LABEL = _(u"Hostname")
+PANEL1_CLIENT_LABEL = _(u"Client No.")
+PANEL1_VERSION_LABEL = _(u"Software Ver.")
+PANEL1_STATUS_LABEL = _(u"Client Status")
 
 PANEL1_TITLE = _(u'Status')
 PANEL1_LASTCOMMITTIME_LABEL = _("Last Commit Time:")
@@ -267,7 +273,7 @@ Click to learn more about hash mismatch.")
 SYNC_PATHNAME_COLUMN_NAME = _(u"Pathname")
 SYNC_SIZE_COLUMN_NAME = _(u"Size")
 SYNC_STATE_COLUMN_NAME = _(u"State")
-SYNC_PANEL_TITLE = _(u"Activities")
+SYNC_PANEL_TITLE = _(u"Changes to be applied")
 
 ##### SYNC DIALOG PATHNAME STATUS MESSAGES #####
 

@@ -3,6 +3,33 @@
 FileRock Client - Changelog
 ===========================
 
+Version 1.0.0 - Codename "TGIF"
+
+- May 03, 2013
+
+
+New features:
+
+- This is the first production release of FileRock! Added support for
+  receiving and displaying the information on the user account plan.
+
+
+Fixed bugs:
+
+- Fixed some bugs related with management of workers that could lead to crash
+  during a massive file transfer.
+- Fixed some bugs which could lead to crash during the download phase when
+  subdirectories were involved.
+
+
+Efficiency improvements:
+
+- The synchronization dialog now can efficently show thousands of actions.
+- Speedup of filesystem watcher by using custom replacement of
+  a few library functions.
+- Speedup of local sqlite3 caches by introducing proper indices.
+
+---------------------------
 
 Version 0.4.6
 
@@ -16,6 +43,7 @@ New features:
 
 
 Fixed bugs:
+
 - Automatic restarting was broken on Windows.
 
 

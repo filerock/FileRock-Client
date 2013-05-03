@@ -3,36 +3,95 @@ Licences
 --------
 
 FileRock-Client software is released under the terms of GPL v3 License.
+Copyright © 2012-2013 Heyware s.r.l.
 
 The full license text is available in the LICENSE.gpl file or online at
 http://www.gnu.org/licenses/gpl.html .
 
+The "robohash.py" module is derived from Robohash library, released under the
+terms of MIT/Expat license, whose full text is available in the LICENSE.mit
+file.
+Copyright © 2011 Colin Davis.
+
 All images and icons, where not specified, are distributed under the
-CC-BY-SA v3 License, whose full text is available in the LICENSE.cc file or
-online at http://creativecommons.org/licenses/by-sa/3.0/ .
+CC-BY-SA v3 License, whose full text is available in the LICENSE.cc-by-sa file
+or online at http://creativecommons.org/licenses/by-sa/3.0/ .
+Copyright © 2012-2013 Heyware s.r.l.
 
 The following exceptions apply.
 
-* The following files are distributed under GPL v3 License:
+Note: the LGPL v3 license text is available in the LICENSE.lgpl file or online
+at http://www.gnu.org/licenses/lgpl.html .
+
+Note: the CC-BY v3 license text is available in the LICENSE.cc-by file or
+online at http://creativecommons.org/licenses/by/3.0/ .
+
+Note: the Creative Commons Public Domain Dediciation License text is available
+in the LICENSE.pub file or online at
+http://creativecommons.org/licenses/publicdomain/ .
+
+* The following files are distributed under GPL v3 License.
+  Copyright © 2006 Sergio Sánchez López - sergio9087@hotmail.com
         data/icons/Status_icons/ALIGNED.png
         data/icons/Status_icons/ANOTHERCLIENT.png
         data/icons/Status_icons/NOSERVER.png
         data/icons/Status_icons/SERVICEBUSY.png
         data/icons/Status_icons/UNKNOWN.png
+        data/images/GUI-icons/and_more.png
+
+* The following files are distributed under GPL v3 License.
+  Copyright © 2007 Alessandro Rei - www.mentalrey.it
+        data/images/Warning.png
+
+* The following files are distributed under GPL v3 License.
+  Copyright © 2007 Alessandro Rei - www.mentalrey.it
+  Copyright © 2013 Heyware s.r.l.
         data/images/other/folder-48.png
 
-* The following files are distributed under LGPL v3 License, whose full text
-  is available in the LICENSE.lgpl file or online at
-  http://www.gnu.org/licenses/lgpl.html :
+* The following files are distributed under LGPL v3 License.
+  Copyright © 2004 David Vignoni - www.icon-king.com
         data/icons/Status_icons/BROKENPROOF.png
         data/icons/Status_icons/HASHMISMATCHONCOMMIT.png
         data/icons/Status_icons/HASHMISMATCHONCONNECT.png
         data/icons/Status_icons/NOTAUTHORIZED.png
+
+* The following files are distributed under LGPL v3 License.
+  Copyright © 2006-2007 Everaldo Coelho - www.everaldo.com
         data/icons/Status_icons/CONNECTING.png
-        data/images/Warning.png
 
-* The following files are distributed to the Public Domain:
+* The following files are distributed to the Public Domain.
+  Copyright © 2008 Wendell Fernandes - www.dellustrations.com
         data/icons/Status_icons/NOTALIGNED.png
+
+* The following files are distributed to the Public Domain.
+  Author: WooThemes - www.woothemes.com
         data/icons/Status_icons/STOPPED.png
+        data/images/GUI-icons/stop-64.png
 
+* The following files are distributed under CC-BY v3 License.
+  Copyright © 2011 Colin Davis - www.github.com/e1ven/Robohash
+        data/images/robohash/*
 
+* The following files are distributed under CC-BY-SA v3 License.
+  Copyright © 2010 WPZOOM - www.wpzoom.com
+  Copyright © 2013 Heyware s.r.l.
+        data/images/cloud/DAmazonS3.png
+        data/images/cloud/DAzure.png
+        data/images/cloud/EAmazonS3.png
+        data/images/cloud/EAzure.png
+
+* The following files are distributed to the Public Domain under the terms
+  of Creative Commons Public Domain Dedication License.
+  Credits: Tango icon theme
+  Authors:
+  Ulisse Perusin <uli.peru@gmail.com>
+  Steven Garrity <sgarrity@silverorange.com>
+  Lapo Calamandrei <calamandrei@gmail.com>
+  Ryan Collier <rcollier@novell.com>
+  Rodney Dawes <dobey@novell.com>
+  Andreas Nilsson <nisses.mail@home.se>
+  Tuomas Kuosmanen <tigert@tigert.com>
+  Garrett LeSage <garrett@novell.com>
+  Jakub Steiner <jimmac@novell.com>
+  Modifications: Heyware s.r.l.
+        data/images/GUI-icons/* (but files "and_more.png", "stop-64.png")

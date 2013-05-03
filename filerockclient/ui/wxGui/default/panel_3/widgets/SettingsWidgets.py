@@ -275,6 +275,8 @@ class AutoUpdateComboBox(ComboBox):
             UPDATECOMBOBOX_LABELS[1] : str(DISABLED)
         }
 
+
+
 class Button(wx.Button):
     def __init__(self, *args, **kwargs):
         wx.Button.__init__(self, *args, **kwargs)
@@ -284,3 +286,27 @@ class Button(wx.Button):
 
     def GetValue(self, *args, **kwargs):
         pass
+
+
+class LogsButton(wx.Button):
+    """This button shows the logs window, but it is supposed to be used
+    only as option widget within panel3. This is because the way it 
+    bind its event to the method of the mainwindow."""
+    
+    def __init__(self, parent, *args, **kwargs):
+        wx.Button.__init__(self, parent, *args, **kwargs)
+
+        # this is a quick and dirty approach to find the right method do call on button click
+        panel3=parent.Parent  
+        mainwindow=panel3.Parent
+        self.Bind(wx.EVT_BUTTON, mainwindow.OnLogsClick, self)
+
+        #improperly using the MAINWINDOW symbols for labels and tooltips
+        self.SetLabel(Messages.MAINWINDOW_LOGS_BUTTON_LABEL) 
+        self.SetToolTipString(Messages.MAINWINDOW_LOGS_BUTTON_TOOTIP)
+        
+    def SetValue(self, unused_value):
+        pass
+
+    def GetValue(self):
+        return None

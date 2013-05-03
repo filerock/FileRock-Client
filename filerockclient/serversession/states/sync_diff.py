@@ -142,6 +142,22 @@ class SyncStartState(ServerSessionState):
             used_space: Number
             basis: String
             user_quota: Number
+
+            optional parameters:
+
+            plan: a dictionary as follows (mandatory)
+                      { id: <plan_id>,    # a number
+                        space: <plan_space_in_GB>,   # a number (within a plan this is mandatory and 'not None')
+                        price: <price_in_$>,      # a number    (if absent or ==None it means "free")
+                        payment_type: <(SINGLE|SUBSCRIPTION)>,   # unicode  (present if price is not None)
+                        payment_recurrence: <(MONTHLY|YEARLY)>   # unicode  (present if price is not None)
+                        }
+            expires_on: <GMT-Date-or-None>    # a number representing a unix timestamp UTC (mandatory)
+                        (it might None if plan is "forever", this is the expiration date of the subscription,
+                         it does not change when in grace time).
+            status: <(TRIAL|ACTIVE|GRACE|SUSPENDED|MAINTAINANCE)>  # unicode (mandatory)
+
+
         """
         storage_content = message.getParameter('dataset')
         self.storage_content = storage_content
@@ -157,9 +173,49 @@ class SyncStartState(ServerSessionState):
             'last_commit_client_platform',
             'last_commit_timestamp',
             'used_space',
-            'user_quota'
+            'user_quota',
+            'plan',
+            'status',
+            'expires_on'
         ]
         info = dict(map(lambda f: (f, message.getParameter(f)), fields))
+
+        # trial
+        # info.update(status='ACTIVE_TRIAL',
+        #             expires_on=1366814411,
+        #             plan=dict(
+        #                 space=1
+        #                 )
+        #             )
+
+        # beta
+        # info.update(status='ACTIVE_BETA',
+        #             expires_on=None,
+        #             plan=dict(
+        #                 space=3
+        #                 )
+        #             )
+
+        # expired
+        # info.update(status='ACTIVE_GRACE',
+        #             expires_on=1366810000,
+        #             plan=dict(
+        #                 space=1,
+        #                 payment_type='SUBSCRIPTION',
+        #                 payment_recurrence='MONTHLY'
+        #                 )
+        #             )
+
+        # good yearly
+        # info.update(status='ACTIVE_PAID',
+        #             expires_on=1366810000,
+        #             plan=dict(
+        #                 space=1,
+        #                 payment_type='SUBSCRIPTION',
+        #                 payment_recurrence='YEARLY'
+        #                 )
+        #             )
+
         self._context._ui_controller.update_session_info(info)
 
         # No blacklisted pathname should be found on the storage. If any, tell

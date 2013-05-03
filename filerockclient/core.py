@@ -131,6 +131,7 @@ class Core(object):
         self.logger.info(
             u"Hello, this is FileRock client (version %s)"
             % CURRENT_CLIENT_VERSION)
+        self.logger.debug(u"python variable __debug__==%r" % __debug__)
 
         self.logger.debug(u"Initializing Metadata DB...")
         database_file = self.cfg.get('Application Paths', 'metadatadb')

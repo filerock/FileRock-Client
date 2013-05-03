@@ -169,7 +169,7 @@ class EventsQueue(object):
         @param event:
                     Instance of PathnameEvent
         """
-        self.logger.debug(u'Digesting event %s' % event)
+        #self.logger.debug(u'Digesting event %s' % event)
         self._last_event_for_pathname[event.pathname] = event
 
         # Force copies to be creations. We aren't ready to handle copies yet.

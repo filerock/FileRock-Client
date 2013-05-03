@@ -49,6 +49,9 @@ import traceback
 from threading import Thread
 from datetime import datetime
 
+from filerockclient.pathname_operation import PathnameOperation
+from filerockclient.serversession.states.sync_download import \
+    CreateDirectoriesTask, DeleteLocalTask, ResolveDeletionConflictsTask
 from filerockclient.util.ipc_log_receiver import LogsReceiver
 from filerockclient.workers.worker_child import WorkerChild
 from filerockclient.interfaces import PStatuses
@@ -130,27 +133,52 @@ class Worker(Thread):
         If the message is a non aborted file operation,
         an abort handler is registered to it and the operation is handled
         """
+
+        file_operation = self.operation_queue.get()
+        if file_operation == 'POISON_PILL':
+            self._on_poison_pill()
+            return
+
+        assert type(file_operation) in [PathnameOperation,
+                                        CreateDirectoriesTask,
+                                        DeleteLocalTask,
+                                        ResolveDeletionConflictsTask]
+
+        self.logger.debug(u"worker executing: %s", file_operation)
+        if __debug__:
+            self._worker_pool.track_assign_worker_to_pathname(
+                self.ident,
+                file_operation.pathname)
+
         try:
-            file_operation = self.operation_queue.get()
             self.warebox._check_blacklisted_dir()
-            if file_operation == 'POISON_PILL':
-                self._on_poison_pill()
-            elif file_operation.is_aborted():
+            if file_operation.is_aborted():
                 self.logger.debug(u"Got an already aborted operation, "
                                   "giving up: %s" % file_operation)
             else:
-                try:
-                    self.logger.debug(u"Got an operation to handle: %s"
-                                      % file_operation)
-                    file_operation.register_abort_handler(self.on_operation_abort)
-                    self._handle_file_operation(file_operation)
-                except Exception as e:
-                    self.logger.error(
-                        u"Some problem occurred with the operation : %r" % e)
-                    raise e
+                self.logger.debug(u"Got an operation to handle: %s",
+                                  file_operation)
+                file_operation.register_abort_handler(self.on_operation_abort)
+                self._handle_file_operation(file_operation)
+
+        except Exception:
+            self.logger.error(u"Some problem occurred in worker "
+                              u"handling operation %r" % file_operation)
+            raise
+
         finally:
             self.logger.debug("Releasing a worker")
+
+            if __debug__:
+                self._worker_pool.track_assert_assigned(
+                    self.ident, file_operation.pathname)
+
             self._worker_pool.release_worker()
+
+            if __debug__:
+                self._worker_pool.track_release_worker(
+                    self.ident,
+                    file_operation.pathname)
 
     def _handle_file_operation(self, file_operation):
         if file_operation.verb == 'UPLOAD':
@@ -171,8 +199,10 @@ class Worker(Thread):
     def _send_percentage(self, file_operation, status, percentage):
         now = datetime.now()
         delta = now - self.last_send
-        if ((delta.seconds + delta.microseconds/1000000.) > 0.5) or (percentage == 100):
-            file_operation.notify_pathname_status_change(status, {'percentage': percentage})
+        if ((delta.seconds + delta.microseconds/1000000.) > 0.5) \
+                or (percentage == 100):
+            file_operation.notify_pathname_status_change(
+                status, {'percentage': percentage})
             self.last_send = now
 
     def _handle_network_transfer_operation(self, file_operation):
@@ -293,7 +323,7 @@ class Worker(Thread):
                 return
 
             # The directory is valid, create it
-            self.warebox.make_directory(operation.pathname)
+            self._make_directories_to(operation.pathname)
             lmtime = self.warebox.get_last_modification_time(operation.pathname)
             operation.lmtime = lmtime
             operation.notify_pathname_status_change(PStatuses.ALIGNED)
@@ -322,6 +352,8 @@ class Worker(Thread):
                         res['expected_etag'], res['expected_basis'],
                         res['actual_etag'], res['computed_basis'])
                     return
+
+                self._make_directories_to(operation.pathname)
 
                 if operation.to_decrypt:
                     # We have not finished yet, leaving the rest to decrypter.
@@ -356,6 +388,24 @@ class Worker(Thread):
                 if operation.temp_pathname is not None \
                 and os.path.exists(operation.temp_pathname):
                     _try_remove(operation.temp_pathname, self.logger)
+
+    def _make_directories_to(self, pathname):
+        """Make sure that the full path for this file exists. It may be
+        either a file or a directory.
+
+        There are a couple of reasons why the full path may not exist:
+        1) Data has been loaded on the storage with an external tool
+           that doesn't explicitly support directories, so they have
+           not been created. Treating these directories as something
+           to download is wrong: they wouldn't pass the integrity
+           check (they really doesn't exist in the trusted dataset),
+           so it is better to make them as new local modifications.
+        2) The user has deleted while offline a directory that is
+           needed by a download. We call it "hierarchy conflict" and
+           is uncovered by the diff algorithm, since case 1 would
+           still remain unhandled.
+        """
+        self.warebox.make_directories_to(pathname)
 
     def _check_download_integrity(self, operation, actual_etag):
         pathname = operation.pathname
@@ -493,8 +543,8 @@ class Worker(Thread):
             result['computed_basis'] = e.operation_basis
 
         except Exception as e:
-            self.logger.debug(u"Integrity check of delete_local operation failed"
-                              " with unknown reason: %s. %r, %r"
+            self.logger.debug(u"Integrity check of delete_local operation"
+                              " failed with unknown reason: %s. %r, %r"
                               % (e, pathname, proof.raw))
             self.logger.debug(traceback.format_exc())
             result['valid'] = False
@@ -523,8 +573,6 @@ class Worker(Thread):
     def _handle_operation_resolve_deletion_conflicts(self, task):
         """Solve deletion conflicts by renaming the local file to a new
         pathname. The old pathname will result implicitly deleted.
-
-        Side effect on Content_to_upload to add the renamed files.
 
         Deletion conflicts are tough to resolve. A conflicting pathname:
         a) has been deleted by the server
