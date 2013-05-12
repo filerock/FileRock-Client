@@ -55,7 +55,7 @@ APPLICATION_PATHS = u"Application Paths"
 
 APPNAME = u"filerock"
 CONFIG_FILE_NAME = u"config.ini"
-CURRENT_CONFIG_VERSION = 12
+CURRENT_CONFIG_VERSION = 13
 BLACKLISTED_DIR = ".FileRockTemp"
 
 PROXY_PORT = '443'
@@ -69,7 +69,7 @@ DEFAULT_CONFIG = {
         u'config_version': u'%s' % CURRENT_CONFIG_VERSION,
         u'server_hostname': u'serv1.filerock.com',
         u'server_port': u'23425',
-        u'linking_hostname': u'link1.filerock.com',
+        u'linking_hostname': u'registration.filerock.com',
         u'linking_port': u'23000',
         u'storage_endpoint': u'seewebstorage.it',
         u'refused_declare_max': u'5',
@@ -128,9 +128,9 @@ DONT_OVERWRITE_ON_MERGE = [
     ('User', 'client_id'),
     ('User', 'encryption_key'),
     ('User Defined Options', '*'),
-    ('Application Paths', '*'),
-    ('System', 'server_hostname'),
-    ('System', 'linking_hostname')
+    ('Application Paths', '*')
+    #('System', 'server_hostname'),
+    #('System', 'linking_hostname')
 ]
 
 

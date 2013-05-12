@@ -37,7 +37,7 @@ except ImportError:
 from filerockclient import APPLICATION_NAME as APPNAME
 
 
-VERSION = '1.0.0'
+VERSION = '1.0.1'
 
 SHEBANG_LINUX = "/usr/bin/env python2"
 SHEBANG_OSX = "/usr/bin/env arch -i386 %s" % sys.executable

@@ -3,6 +3,18 @@
 FileRock Client - Changelog
 ===========================
 
+Version 1.0.1
+
+- May 08, 2013
+
+
+Maintenance:
+
+- Communicating with the linking server through a REST interface.
+
+
+---------------------------
+
 Version 1.0.0 - Codename "TGIF"
 
 - May 03, 2013

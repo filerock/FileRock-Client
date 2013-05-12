@@ -41,23 +41,22 @@ FileRock Client is licensed under GPLv3 License.
 """
 
 import logging
-import socket
-import ssl
 import os
 import hashlib
 import platform
+import urllib
+import httplib
+#import requests
+import json
 import pbkdf2
 import codecs
 import ConfigParser
 from binascii import hexlify, unhexlify
 from Crypto.PublicKey.RSA import RSAImplementation
 
-from FileRockSharedLibraries.Communication.Messages import \
-    unpack, CLIENT_LINKING_REQUEST_MESSAGE
 from filerockclient.exceptions import *
 from filerockclient.config import ConfigManager
 from filerockclient.workers.filters.encryption import utils as CryptoUtils
-
 import filerockclient.interfaces.LinkingStatuses as LinkingStatus
 from FileRockSharedLibraries.Misc.LinkingServiceCodes import \
     LinkingServiceCodes
@@ -81,24 +80,7 @@ class Linker(object):
         if cfg.has_option('User', 'username'):
             self.username = cfg.get('User', 'username')
 
-        self.MESSAGE_TYPE = 'CLIENT_LINKING_REQUEST_MESSAGE'
-        self.message_length_descriptor_length = 32
-
         self.logger = logging.getLogger("FR." + self.__class__.__name__)
-
-    def _acquire_network_resources(self):
-        try:
-            self.logger.debug(u"Trying to acquire network")
-            sock = socket.create_connection((self.host, self.port), 15)
-            ca_chain = os.path.abspath(self.certificate)
-            self.sock = ssl.wrap_socket(
-                sock, cert_reqs=ssl.CERT_REQUIRED, ca_certs=ca_chain,
-                ssl_version=ssl.PROTOCOL_TLSv1)
-            self.logger.debug(u"Network acquired")
-        except:
-            self.logger.error(u'Failed acquiring network for linking')
-            raise ConnectionException("Linking Server unreachable")
-        return True
 
     def _pad(self, blob, length):
         """Returns a padded version of the passed blob which has the
@@ -113,46 +95,6 @@ class Linker(object):
             return blob
         else:
             return '%s%s' % (' ' * (length - len(blob)), blob)
-
-    def _receive_message(self):
-        """Listens on socket for MSG_LENGTH and MSG_DATA and returns a
-        Message object.
-
-        Please note that potentially raise BadMessageLengthException or
-        MsgUnpackingException. Who calls receive_message should catch
-        such exceptions.
-        """
-        msg_length = \
-            self.sock.recv(self.message_length_descriptor_length).strip()
-        if not len(msg_length):
-            raise BrokenPipeException()
-        try:
-            msg_length = int(msg_length)
-        except ValueError:
-            raise ProtocolException()
-        msg = self.sock.recv(msg_length)
-        if not len(msg):
-            raise BrokenPipeException()
-        return unpack(msg)
-
-    def _send_message(self, msg):
-        """Receive a Message object and send them on socket with
-        MSG_LENGTH and MSG_DATA scheme.
-
-        Potentially raises MsgPackingException or BrokenPipeException.
-        Callers should catch and handle such exception.
-        """
-        msg_length, message = msg.pack()
-        msg_length_padded = self._pad(
-            str(msg_length), self.message_length_descriptor_length)
-        msg_len_bytes = self.sock.send(msg_length_padded)
-        if msg_len_bytes != self.message_length_descriptor_length:
-            raise BrokenPipeException(
-                'Unable to write all the bytes to the socket.')
-        msg_data_bytes = self.sock.send(message)
-        if msg_data_bytes != msg_length:
-            raise BrokenPipeException(
-                'Unable to write all the bytes to the socket.')
 
     def _generate_authDigest(self, username,  password):
         """
@@ -176,35 +118,6 @@ class Linker(object):
         self.logger.debug(u'RSA keypair generated.')
         self.logger.debug(u'Public key generated:\n %s' % pub_key)
         return pub_key, pvt_key
-
-    def _generate_request(
-            self,  username,  authentication_digest,  pub_key, platform,
-            hostname, enc_mk):
-        """Returns message ready to be sent"""
-        params = {
-            'linking_protocol_version': self.protocol_version,
-            'username': username,
-            'authentication_digest': authentication_digest,
-            'CAPubK': pub_key,
-            'platform': platform,
-            'hostname': hostname,
-            'proposed_encryption_key': hexlify(enc_mk)
-        }
-
-        request = CLIENT_LINKING_REQUEST_MESSAGE(self.MESSAGE_TYPE, params)
-        return request
-
-    def _communicate(self,  request):
-        """
-        Send a message to the Linking server and wait for the answer
-        """
-        self.logger.debug(u"Communicating with Linking Server")
-        self._acquire_network_resources()
-        self._send_message(request)
-        response = self._receive_message()
-        self.sock.close()
-        self.logger.debug(u"Communication ended")
-        return response
 
     def _ask_for_credentials(self, retry, initialization):
         credentials = self._ui_controller.ask_for_user_input(
@@ -271,7 +184,7 @@ class Linker(object):
             system = platform.system()
             hostname = platform.node()
 
-            if pub_key == None:
+            if pub_key is None:
                 self._ui_controller.update_linking_status(LinkingStatus.SENDING)
                 self.logger.info(u'Generating your public/private keys...')
                 pub_key, pvt_key = self._generate_keys()
@@ -283,41 +196,62 @@ class Linker(object):
             enc_key = CryptoUtils.generate_encryption_key()
             enc_mk = CryptoUtils.enckey_to_encmk(enc_key, username, password)
 
-            request = self._generate_request(
-                username, authentication_digest, pub_key, system,
-                hostname, enc_mk)
             try:
                 self._ui_controller.update_linking_status(LinkingStatus.SENDING)
-                response = self._communicate(request)
-                result = response.getParameter("result")
-                self.logger.debug(u"transaction result is %r" % linked)
 
-                linkstatus = LinkingStatus.UNKNOW_ERROR
-                if result:
-                    self._on_success(response, username, password, pvt_key)
+                data = json.dumps(dict(
+                    authentication_digest=authentication_digest,
+                    pub_key=pub_key,
+                    platform=system,
+                    hostname=hostname,
+                    proposed_encryption_key=hexlify(enc_mk)
+                ))
+
+                # Note: We can't use requests yet because of the proxy patch
+                # on httplib. Keep using httplib for now.
+                # url = "https://%s/user/%s/client/link" % (self.host, username)
+                # response = requests.post(url=url, data=data)
+
+                conn = httplib.HTTPSConnection(self.host)
+                #conn.set_debuglevel(1)
+                target = urllib.quote("/user/%s/client/link" % username)
+                conn.request("POST", target, data)
+                response = conn.getresponse()
+
+                if response.status == 200:
+                    response_obj = json.loads(response.read())
+                    self._on_success(response_obj, username, password, pvt_key)
                     linkstatus = LinkingStatus.SUCCESS
                     linked = True
                 else:
-                    result_code = response.getParameter('result_code')
-                    message = response.getParameter('message')
-                    self.logger.error(u"ERROR: Result Code: %r Message: %r"
-                        % (result_code, message))
-                    responseCode = response.getParameter('result_code')
-                    if responseCode in [
-                            LinkingServiceCodes.UNSUPPORTED_MESSAGE_TYPE,
-                            LinkingServiceCodes.UNSUPPORTED_PROTOCOL_VERSION,
-                            LinkingServiceCodes.TOO_MANY_BUCKET
-                        ]:
-                        linkstatus = LinkingStatus.SERVER_ERROR
-                    elif responseCode == LinkingServiceCodes.LINKING_FAILED:
-                        linkstatus = LinkingStatus.LINKING_FAILED
-                    elif responseCode == LinkingServiceCodes.BAD_USERNAME:
-                        linkstatus = LinkingStatus.MALFORMED_USERNAME
-                    elif responseCode == LinkingServiceCodes.INVALID_USER_CREDENTIAL:
-                        linkstatus = LinkingStatus.WRONG_CREDENTIALS
+                    self.logger.error(u"Linking error, status: %s, body: %s"
+                                      % (response.status, response.read()))
 
-                    #self.logger.debug(u"username %s, password %s"
-                    #    % (credentials['username'], credentials['password']))
+                    error_table = {
+                        # Unauthorized.
+                        # It means: invalid authentication_digest
+                        401: LinkingStatus.WRONG_CREDENTIALS,
+
+                        # Not found.
+                        # It means: unknown username
+                        404: LinkingStatus.MALFORMED_USERNAME,
+
+                        # Precondition failed.
+                        # It means: there are already too many linked clients
+                        412: LinkingStatus.LINKING_FAILED,
+
+                        # Temporary unavailable.
+                        503: LinkingStatus.SERVER_ERROR,
+
+                        # Internal server error.
+                        500: LinkingStatus.SERVER_ERROR
+                    }
+
+                    try:
+                        linkstatus = error_table[response.status]
+                    except KeyError:
+                        linkstatus = LinkingStatus.UNKNOW_ERROR
+
                 self._ui_controller.update_linking_status(linkstatus)
                 credentials = self._ask_for_credentials(True, credentials)
                 if credentials['provided'] is None:
@@ -338,19 +272,22 @@ class Linker(object):
         return linked
 
     def _on_success(self, response, username, password, pvt_key):
-        self.logger.info(
-            u"Linking done successfully, assigned client id = %s"
-            % response.getParameter('assigned_client_id'))
-        client_id = response.getParameter('assigned_client_id')
-        enc_mk = response.getParameter('assigned_encryption_key')
+        """@ptype response:  the response returned by requests.post()
+        """
+        client_id = response['assigned_client_id']
+
+        self.logger.info(u"Linking done successfully, assigned client id = %s"
+                         % client_id)
+
+        enc_mk = response['assigned_encryption_key']
         strId = unicode(str(client_id), 'utf-8_sig')
         #Adds cliend id to the configuration
         enc_key = CryptoUtils.encmk_to_enckey(
             unhexlify(enc_mk), username, password)
 
-        self.logger.debug(
-            u'Setting new configuration username:%s client_id:%s'
-            % (username, strId))
+        self.logger.debug(u'Setting new configuration username:%s client_id:%s'
+                          % (username, strId))
+
         self.cfg.set('User', 'client_id', strId)
         self.cfg.set('User', 'username', username)
         #TODO: check the presence of encryption dir in config
